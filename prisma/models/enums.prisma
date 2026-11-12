@@ -1,0 +1,123 @@
+enum UserRoles {
+    CUSTOMER
+    ADMIN
+    STUFF
+}
+
+enum UserStatus {
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+}
+
+enum AddressType {
+    HOME
+    OFFICE
+    OTHER
+}
+
+enum StockManagementType {
+    PURCHASE
+    SALE
+    RETURN
+    RESTOCK
+    ADJUSTMENT
+    RESERVED
+    RELEASED
+}
+
+enum ProductVariantStatus {
+    ACTIVE
+    INACTIVE
+    OUT_OF_STOCK
+}
+
+enum ProductStatus {
+    DRAFT
+    ACTIVE
+    INACTIVE
+    ARCHIVED
+}
+
+
+enum CategoryStatus {
+    ACTIVE
+    INACTIVE
+    ARCHIVED
+}
+
+enum BrandStatus {
+    ACTIVE
+    INACTIVE
+    ARCHIVED
+}
+
+
+enum ProductReview {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum CouponType {
+    PERCENTAGE
+    FIXED_AMOUNT
+}
+
+enum CouponStatus {
+    ACTIVE
+    INACTIVE
+    EXPIRES
+}
+
+enum OrderStatus {
+    PENDING
+    CONFIRMED
+    PROCESSING
+    READY_TO_SHIP
+    SHIPPED
+    OUT_FOR_DELIVERY
+    DELIVERED
+    CANCELLED
+    RETURNED
+    FAILED
+}
+
+
+
+enum ShippingStatus {
+    PENDING
+    CONFIRMED
+    PICKED_UP
+    IN_TRANSIT
+    OUT_FOR_DELIVERY
+    DELIVERED
+    FAILED
+    RETURNED
+}
+
+
+
+enum PaymentMethod {
+    CASH_ON
+    CARD
+    MOBILE_BANKING
+}
+
+enum PaymentStatus {
+    PENDING
+    PROCESSING
+    PAID
+    FAILED
+    CANCELLED
+    REFUNDED
+    PARTIALLY_REFUNDED
+}
+
+
+enum GatewayProvider {
+    CASH_ON
+    BKASH
+    STRIPE
+    SSLCOMMERZ
+}
