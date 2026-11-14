@@ -1,0 +1,10 @@
+model Inventories {
+    id String @id @default(uuid())
+    variantId String
+    stocks StockManagements[]
+    quantityOnHand Int
+    quantityReserved Int
+    reOrderLevel Int
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+}

@@ -1,0 +1,21 @@
+model Categories {
+    id String @id @default(uuid())
+    name String @db.VarChar(25)
+    slug String @db.VarChar(30)
+    description String? @db.VarChar(255)
+    image String @db.Text()
+    parentId String?
+    children Categories[]
+    isFeatured Boolean @default(false)
+    displayOrder Int @db.SmallInt
+    metaTitle String? @db.Text()
+    metaDescription String? @db.Text()
+    status CategoryStatus @default(INACTIVE)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    @@index([parentId])
+    @@index([status])
+    @@index([isFeatured])
+    @@index([displayOrder])
+}

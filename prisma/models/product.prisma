@@ -1,0 +1,29 @@
+model Products {
+    id String @id @default(uuid())
+    name String @db.VarChar(50)
+    slug String @db.VarChar(60)
+    shortDescription String @db.VarChar(100)
+    description String @db.Text()
+    brandId String
+    categories Categories[]
+    price Int?
+    salePrice Int?
+    image String @db.Text()
+    gallery ProductImages[]
+    // variant ProductVariant[]
+    // review ProductReviews[]
+    status ProductStatus @default(DRAFT)
+    isFeatured Boolean @default(false)
+    isNewArrival Boolean @default(false)
+    isBestSeller Boolean @default(false)
+    metaTitle String? @db.Text()
+    metaDescription String? @db.Text()
+    publishedAt DateTime?
+    createdAt DateTime @default(mow())
+    updatedAt DateTime @updatedAt()
+
+    @@index([brandId])
+    @@index([status])
+    @@index([isFeatured])
+    @@index([createdAt])
+}

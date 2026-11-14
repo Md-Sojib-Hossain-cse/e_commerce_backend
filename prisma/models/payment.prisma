@@ -1,0 +1,20 @@
+model Payments {
+    id String @id @default(uuid())
+    orderId String @unique
+    method PaymentMethod @default(CASH_ON)
+    status PaymentStatus @default(PENDING)
+    description String? @db.Text()
+    amount Int
+    currency String @default("BDT")
+    gatewayInfo Json @db.JsonB
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    order Orders @relation(fields : [orderId] , references : [id])
+
+
+    @@index([orderId])
+    @@index([status])
+    @@index([method])
+    @@index([gatewaySessionId])
+}

@@ -1,0 +1,11 @@
+model WishlistItems {
+    id String @id @default(uuid())
+    wishlistId String
+    productId String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    @@unique([wishlistId , productId])
+
+    @@index([productId])
+}

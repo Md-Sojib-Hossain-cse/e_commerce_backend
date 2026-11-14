@@ -1,0 +1,22 @@
+model Notifications {
+    id String @id @default(uuid())
+    userId String
+    title String @db.VarChar(30)
+    message String @db.VarChar(100)
+    type NotificationType @default(SYSTEM)
+    priority NotificationPriority @default(NORMAL)
+    channel NotificationChannel @default(in_app)
+    accountUrl String @db.Text()
+    metaData Json @db.JsonB
+    isRead Boolean @default(false)
+    readAt DateTime?
+    sentAt DateTime?
+    failedAt DateTime?
+    failureReason String? @db.VarChar(200)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    @@index([userId , isRead , createdAt])
+    @@index([type , createdAt])
+    @@index([channel , sentAt])
+}

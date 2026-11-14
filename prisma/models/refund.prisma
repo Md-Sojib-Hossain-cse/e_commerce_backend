@@ -1,0 +1,23 @@
+model Refunds {
+    id String @id @default(uuid())
+    refundNumber String @db.VarChar(10)
+    orderId String
+    paymentId String
+    amount Int
+    currency String @db.VarChar(5)
+    description String? @db.VarChar(255)
+    status RefundStatus @default(PENDING)
+    gatewayRefundId String? @db.Text()
+    transactionReference String? @db.Text()
+    processedBy String
+    processedAt DateTime?
+    completedAt DateTime?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+
+    @@index([orderId])
+    @@index([paymentId])
+    @@index([status])
+    @@index([createdAt])
+}

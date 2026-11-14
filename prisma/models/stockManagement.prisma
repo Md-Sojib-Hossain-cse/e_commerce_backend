@@ -1,0 +1,20 @@
+model StockManagements {
+    id String @id @default(uuid())
+    inventoryId String
+    type StockManagementType
+    quantity Int
+    stockBefore Int
+    stockAfter Int
+    orderId String
+    orderItemId String
+    performedById String
+    note String? @db.VarChar(255)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    inventory Inventories @relation(fields : [inventoryId] , references : [id])
+
+    @@index([inventory , createdAt])
+    @@index([orderId])
+    @@index([type])
+}

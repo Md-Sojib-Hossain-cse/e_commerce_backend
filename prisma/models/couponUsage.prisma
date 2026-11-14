@@ -1,0 +1,16 @@
+model CouponUsages {
+    id String @id @default(uuid())
+    coupon Coupons @relation(fields : [couponId] , references : [id])
+    couponId String
+    userId String
+    orderId String
+    usedAt DateTime
+    couponCode String @db.VarChar(30)
+    discountAmount Int?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+
+    @@unique([couponId, userId, orderId])
+    @@index([couponId , userId])
+}

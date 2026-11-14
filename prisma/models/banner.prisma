@@ -1,0 +1,23 @@
+model Banners{
+    id String @id @default(uuid())
+    title String @db.VarChar(30)
+    subtitle String? @db.VarChar(50)
+    description String? @db.VarChar(100)
+    image String @db.Text()
+    mobileImage String? @db.Text()
+    buttonText String? @db.VarChar(20)
+    buttonLink String? @db.Text()
+    position BannerPosition @default(HOME_HERO)
+    startsAt DateTime?
+    endsAt DateTime
+    displayOrder Int @db.SmallInt
+    status BannerStatus @default(DRAFT)
+    altText String? @db.VarChar(50)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+
+    @@index([status , position])
+    @@index([displayOrder])
+    @@index([startsAt , endsAt])
+}

@@ -53,7 +53,7 @@ enum BrandStatus {
 }
 
 
-enum ProductReview {
+enum ProductReviewStatus {
     PENDING
     APPROVED
     REJECTED
@@ -114,10 +114,68 @@ enum PaymentStatus {
     PARTIALLY_REFUNDED
 }
 
+enum RefundStatus {
+    PENDING
+    APPROVED
+    PROCESSING
+    COMPLETED
+    REJECTED
+    FAILED
+    CANCELLED
+}
+
 
 enum GatewayProvider {
     CASH_ON
     BKASH
     STRIPE
     SSLCOMMERZ
+}
+
+
+
+enum BannerPosition{
+    HOME_HERO
+    HOME_MIDDLE
+    HOME_BOTTOM
+    CATEGORY
+}
+
+
+enum BannerStatus {
+    DRAFT
+    ARCHIVED
+    INACTIVE
+    ACTIVE
+}
+
+
+enum FaqStatus {
+    DRAFT
+    PUBLISHED
+    ARCHIVED
+}
+
+enum NotificationType {
+    ORDER
+    PAYMENT
+    SHIPPING
+    PROMOTION
+    ACCOUNT
+    SYSTEM
+}
+
+enum NotificationPriority{
+    LOW
+    NORMAL
+    HIGH
+    URGENT
+}
+
+
+enum NotificationChannel {
+    IN_APP
+    EMAIL
+    SMS
+    PUSH
 }

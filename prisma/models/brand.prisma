@@ -1,0 +1,20 @@
+model Brands {
+    id String @id @default(uuid())
+    name String @db.VarChar(50)
+    slug String @db.VarChar(60)
+    description String? @db.VarChar(255)
+    logo String @db.Text()
+    banner String? @db.Text()
+    website String? @db.Text()
+    isFeatured Boolean @default(false)
+    displayOrder Int @db.SmallInt
+    metaTitle String? @db.Text()
+    metaDescription String? @db.Text()
+    status BrandStatus @default(INACTIVE)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    @@index([status])
+    @@index([isFeatured])
+    @@index([displayOrder])
+}

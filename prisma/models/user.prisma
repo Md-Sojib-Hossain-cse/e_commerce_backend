@@ -1,0 +1,23 @@
+model Users {
+    id  String  @id @default(uuid())
+    email String @unique @db.VarChar(50)
+    name String @db.VarChar(50)
+    password String? @db.Text()
+    dateOfBirth DateTime?
+    phone String?  @unique @db.VarChar(15)
+    image String? @db.Text()
+    role UserRoles  @default(CUSTOMER)
+    status UserStatus @default(ACTIVE)
+    emailVerifiedAt DateTime?
+    phoneVerifiedAt DateTime?
+    lastLoggedInAt  DateTime?
+    isDeleted Boolean @default(false)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+    address Addresses[]
+
+    @@index([role])
+    @@index([status])
+    @@index([createdAt])
+    @@index([isDeleted])
+}

@@ -1,0 +1,13 @@
+model ProductImages {
+    id String @id @default(uuid())
+    productId String
+    url String @db.VarChar(50)
+    alt String? @db.VarChar(50)
+    logo String? @db.VarChar(50)
+    isPrimary Boolean @default(false)
+    sortOrder Int
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    @@index([productId])
+}

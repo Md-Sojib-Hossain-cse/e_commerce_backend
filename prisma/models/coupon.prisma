@@ -1,0 +1,23 @@
+model Coupons{
+    id String @id @default(uuid())
+    code String @db.VarChar(30)
+    name String @db.VarChar(50)
+    description String? @db.VarChar(255)
+    type CouponType
+    value Int
+    maxDiscount Int?
+    minOrderAmount Int?
+    usageLimit Int?
+    usagePerUser Int? @db.SmallInt
+    usedCount Int?
+    startsAt DateTime?
+    expiresAt DateTime?
+    firstOrderOnly Boolean @default(false)
+    status CouponStatus  @default(INACTIVE)
+    usages CouponUsages[]
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt()
+
+    @@index([status])
+    @@index([expiresAt])
+}
