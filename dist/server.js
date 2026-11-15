@@ -19,6 +19,27 @@ var config = {
   node_env: process.env.NODE_ENV
 };
 
+// src/utils/sendResponse.ts
+var sendResponse = (res, data) => {
+  const statusCode = data.statusCode || 500;
+  res.status(statusCode).json({
+    success: data.success,
+    message: data.message || "Internal Server Error!",
+    statusCode,
+    data: data.data,
+    meta: data.meta
+  });
+};
+
+// src/middlewares/notFound.ts
+var notFound = (req, res) => {
+  sendResponse(res, {
+    success: false,
+    message: "Route Not Found!",
+    statusCode: 404
+  });
+};
+
 // src/app.ts
 var app = express();
 app.use(helmet());
@@ -47,6 +68,10 @@ app.use(cookieParser());
 app.get("/", (req, res) => {
   res.send("Welcome to CCL E-commerce server!");
 });
+app.get("/api/v1", (req, res) => {
+  res.send("Welcome to CCL E-commerce server version 1 is boosted on\u{1F525}\u{1F525}!");
+});
+app.use(notFound);
 var app_default = app;
 
 // src/lib/prisma.ts
