@@ -1,9 +1,10 @@
 import type { Request, Response } from "express";
+import { sendResponse } from "../utils/sendResponse";
 
 export const notFound = (req: Request, res: Response) => {
-  res.status(404).json({
+  sendResponse(res, {
     success: false,
     message: "Route Not Found!",
-    statusCode: 404,
+    statusCode : 404
   });
 };
