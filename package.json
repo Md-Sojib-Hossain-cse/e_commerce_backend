@@ -9,7 +9,10 @@
     "start": "node dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "prisma generate",
-    "generate": "prisma generate"
+    "generate": "prisma generate",
+    "format": "prisma format",
+    "validate": "prisma validate",
+    "migrate": "prisma migrate dev"
   },
   "keywords": [],
   "author": "",

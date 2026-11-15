@@ -1,16 +1,17 @@
 model OrderAddresses {
-    id String @id @default(uuid())
-    order Orders @relation(fields : [orderId], references : [id])
-    orderId String  @unique
-    name String @db.VarChar(50)
-    phone String @db.VarChar(15) 
-    addressLine String @db.VarChar(100)
-    city String @db.VarChar(30)
-    district String @db.VarChar(30)
-    postalCode String @db.VarChar(15)
-    country String @db.VarChar(30)
-    landmark String @db.Text()
-    deliveryInstructions String? @db.VarChar(200)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
+  id                   String   @id @default(uuid()) @db.Uuid
+  orderId              String   @unique @db.Uuid
+  name                 String   @db.VarChar(50)
+  phone                String   @db.VarChar(15)
+  addressLine          String   @db.VarChar(100)
+  city                 String   @db.VarChar(30)
+  district             String   @db.VarChar(30)
+  postalCode           String   @db.VarChar(15)
+  country              String   @db.VarChar(30)
+  landmark             String   @db.Text()
+  deliveryInstructions String?  @db.VarChar(200)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt()
+
+  order Orders @relation(fields: [orderId], references: [id])
 }

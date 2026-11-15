@@ -1,29 +1,36 @@
 model Products {
-    id String @id @default(uuid())
-    name String @db.VarChar(50)
-    slug String @db.VarChar(60)
-    shortDescription String @db.VarChar(100)
-    description String @db.Text()
-    brandId String
-    categories Categories[]
-    price Int?
-    salePrice Int?
-    image String @db.Text()
-    gallery ProductImages[]
-    // variant ProductVariant[]
-    // review ProductReviews[]
-    status ProductStatus @default(DRAFT)
-    isFeatured Boolean @default(false)
-    isNewArrival Boolean @default(false)
-    isBestSeller Boolean @default(false)
-    metaTitle String? @db.Text()
-    metaDescription String? @db.Text()
-    publishedAt DateTime?
-    createdAt DateTime @default(mow())
-    updatedAt DateTime @updatedAt()
+  id               String        @id @default(uuid()) @db.Uuid
+  brandId          String        @db.Uuid
+  sizeChartId      String?       @db.Uuid
+  name             String        @db.VarChar(50)
+  slug             String        @db.VarChar(60)
+  shortDescription String        @db.VarChar(100)
+  description      String        @db.Text()
+  price            Int?
+  salePrice        Int?
+  image            String        @db.Text()
+  status           ProductStatus @default(DRAFT)
+  isFeatured       Boolean       @default(false)
+  isNewArrival     Boolean       @default(false)
+  isBestSeller     Boolean       @default(false)
+  metaTitle        String?       @db.Text()
+  metaDescription  String?       @db.Text()
+  publishedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt()
 
-    @@index([brandId])
-    @@index([status])
-    @@index([isFeatured])
-    @@index([createdAt])
+  sizeChart SizeCharts? @relation(fields: [sizeChartId], references: [id], onDelete: SetNull)
+  brand     Brands      @relation(fields: [brandId], references: [id])
+
+  gallery       ProductImages[]
+  variant       ProductVariants[]
+  review        ProductReviews[]
+  cartItems     CartItems[]
+  wishlistItems WishlistItems[]
+  orderItems    OrderItems[]
+
+  @@index([brandId])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([createdAt])
 }

@@ -1,20 +1,23 @@
 model StockManagements {
-    id String @id @default(uuid())
-    inventoryId String
-    type StockManagementType
-    quantity Int
-    stockBefore Int
-    stockAfter Int
-    orderId String
-    orderItemId String
-    performedById String
-    note String? @db.VarChar(255)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
+  id            String              @id @default(uuid()) @db.Uuid
+  inventoryId   String              @db.Uuid
+  orderId       String              @db.Uuid
+  orderItemId   String              @db.Uuid
+  performedById String              @db.Uuid
+  type          StockManagementType
+  quantity      Int
+  stockBefore   Int
+  stockAfter    Int
+  note          String?             @db.VarChar(255)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt()
 
-    inventory Inventories @relation(fields : [inventoryId] , references : [id])
+  inventory   Inventories @relation(fields: [inventoryId], references: [id])
+  order       Orders      @relation(fields: [orderId], references: [id])
+  orderItem   OrderItems  @relation(fields: [orderItemId], references: [id])
+  performedBy Users       @relation(fields: [performedById], references: [id])
 
-    @@index([inventory , createdAt])
-    @@index([orderId])
-    @@index([type])
+  @@index([inventoryId, createdAt])
+  @@index([orderId])
+  @@index([type])
 }

@@ -1,16 +1,18 @@
 model CouponUsages {
-    id String @id @default(uuid())
-    coupon Coupons @relation(fields : [couponId] , references : [id])
-    couponId String
-    userId String
-    orderId String
-    usedAt DateTime
-    couponCode String @db.VarChar(30)
-    discountAmount Int?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
+  id             String   @id @default(uuid()) @db.Uuid
+  couponId       String   @db.Uuid
+  userId         String   @db.Uuid
+  orderId        String   @db.Uuid
+  usedAt         DateTime
+  couponCode     String   @db.VarChar(30)
+  discountAmount Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt()
 
+  coupon Coupons @relation(fields: [couponId], references: [id])
+  user   Users   @relation(fields: [userId], references: [id])
+  order  Orders  @relation(fields: [orderId], references: [id])
 
-    @@unique([couponId, userId, orderId])
-    @@index([couponId , userId])
+  @@unique([couponId, userId, orderId])
+  @@index([couponId, userId])
 }

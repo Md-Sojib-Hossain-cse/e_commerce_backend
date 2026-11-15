@@ -1,0 +1,22 @@
+model ContactMessages {
+  id        String                 @id @default(uuid()) @db.Uuid
+  userId    String?                @db.Uuid
+  name      String                 @db.VarChar(50)
+  email     String                 @db.VarChar(50)
+  phone     String?                @db.VarChar(15)
+  subject   String                 @db.VarChar(50)
+  message   String                 @db.Text()
+  category  ContactMessageCategory @default(GENERAL)
+  status    ContactMessageStatus   @default(NEW)
+  adminNote String?                @db.Text()
+  repliedAt DateTime?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt()
+
+  user Users? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([createdAt])
+}

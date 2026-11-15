@@ -1,19 +1,21 @@
-model ProductReview {
-    id String @id @default(uuid())
-    productId String
-    userId String
-    rating Int
-    title String?
-    comment String @db.VarChar(100)
-    isVerifiedPurchase Boolean @default(false)
-    status ProductReviewStatus @default(PENDING)
-    helpfulContent Int?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
+model ProductReviews {
+  id                 String              @id @default(uuid()) @db.Uuid
+  productId          String              @db.Uuid
+  userId             String              @db.Uuid
+  rating             Int
+  title              String?
+  comment            String              @db.VarChar(100)
+  isVerifiedPurchase Boolean             @default(false)
+  status             ProductReviewStatus @default(PENDING)
+  helpfulContent     Int?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt()
 
-    @@unique([userId , productId])
+  product Products @relation(fields: [productId], references: [id])
+  user    Users    @relation(fields: [userId], references: [id])
 
-    @@index([productId , status])
-    @@index([userId])
-    @@index([rating])
+  @@unique([userId, productId])
+  @@index([productId, status])
+  @@index([userId])
+  @@index([rating])
 }

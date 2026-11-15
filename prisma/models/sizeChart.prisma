@@ -1,0 +1,12 @@
+model SizeCharts {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @db.VarChar(150)
+  description String? @db.Text()
+  categoryId  String? @db.Uuid
+
+  measurements SizeChartMeasurements[]
+  products     Products[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}

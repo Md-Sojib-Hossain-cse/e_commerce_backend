@@ -1,0 +1,12 @@
+model SizeChartMeasurements {
+  id           String @id @default(uuid()) @db.Uuid
+  sizeChartId  String @db.Uuid
+  size         String @db.VarChar(20)
+  measurements Json   @db.JsonB
+  sortOrder    Int    @db.SmallInt
+
+  sizeChart SizeCharts @relation(fields: [sizeChartId], references: [id])
+
+  @@unique([sizeChartId, size])
+  @@index([sizeChartId, sortOrder])
+}

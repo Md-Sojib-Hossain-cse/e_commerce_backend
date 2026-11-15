@@ -1,22 +1,22 @@
-model Shippings{
-    id String @id @default(uuid())
-    order Orders @relation(fields : [orderId] , references : [id])
-    orderId String @unique
-    courierName String? @db.VarChar(30)
-    courierService String? @db.VarChar(30)
-    trackingNumber String? @unique @db.Text()
-    consignmentId String? @unique @db.Text()
-    status ShippingStatus  @default(PENDING)
-    estimatedDelivery DateTime?
-    shippingAt DateTime?
-    deliveredAt DateTime?
-    trackingUrl String? @db.Text()
-    deliveryNote String? @db.VarChar(200)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
+model Shippings {
+  id                String         @id @default(uuid()) @db.Uuid
+  orderId           String         @unique @db.Uuid
+  courierName       String?        @db.VarChar(30)
+  courierService    String?        @db.VarChar(30)
+  trackingNumber    String?        @unique @db.Text()
+  consignmentId     String?        @unique @db.Text()
+  status            ShippingStatus @default(PENDING)
+  estimatedDelivery DateTime?
+  shippingAt        DateTime?
+  deliveredAt       DateTime?
+  trackingUrl       String?        @db.Text()
+  deliveryNote      String?        @db.VarChar(200)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt()
 
+  order Orders @relation(fields: [orderId], references: [id])
 
-    @@index([orderId])
-    @@index([status])
-    @@index([consignmentId])
+  @@index([orderId])
+  @@index([status])
+  @@index([consignmentId])
 }

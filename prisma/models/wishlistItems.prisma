@@ -1,11 +1,13 @@
 model WishlistItems {
-    id String @id @default(uuid())
-    wishlistId String
-    productId String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
+  id         String   @id @default(uuid()) @db.Uuid
+  wishlistId String   @db.Uuid
+  productId  String   @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt()
 
-    @@unique([wishlistId , productId])
+  wishlist Wishlists @relation(fields: [wishlistId], references: [id])
+  product  Products  @relation(fields: [productId], references: [id])
 
-    @@index([productId])
+  @@unique([wishlistId, productId])
+  @@index([productId])
 }

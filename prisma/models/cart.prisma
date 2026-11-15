@@ -1,13 +1,11 @@
 model Carts {
-    id String @id @default(uuid())
-    userId String
-    items CartItems[]
-    totalAmount Int 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  totalAmount Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt()
 
-    @@unique([cartId , variantId])
+  user Users @relation(fields: [userId], references: [id])
 
-    @@index([productId])
-    @@index([variantId])
+  items CartItems[]
 }

@@ -1,181 +1,188 @@
 enum UserRoles {
-    CUSTOMER
-    ADMIN
-    STUFF
+  CUSTOMER
+  ADMIN
+  STUFF
 }
 
 enum UserStatus {
-    ACTIVE
-    INACTIVE
-    SUSPENDED
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
 
 enum AddressType {
-    HOME
-    OFFICE
-    OTHER
+  HOME
+  OFFICE
+  OTHER
 }
 
 enum StockManagementType {
-    PURCHASE
-    SALE
-    RETURN
-    RESTOCK
-    ADJUSTMENT
-    RESERVED
-    RELEASED
+  PURCHASE
+  SALE
+  RETURN
+  RESTOCK
+  ADJUSTMENT
+  RESERVED
+  RELEASED
 }
 
 enum ProductVariantStatus {
-    ACTIVE
-    INACTIVE
-    OUT_OF_STOCK
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
 }
 
 enum ProductStatus {
-    DRAFT
-    ACTIVE
-    INACTIVE
-    ARCHIVED
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
 }
 
-
 enum CategoryStatus {
-    ACTIVE
-    INACTIVE
-    ARCHIVED
+  ACTIVE
+  INACTIVE
+  ARCHIVED
 }
 
 enum BrandStatus {
-    ACTIVE
-    INACTIVE
-    ARCHIVED
+  ACTIVE
+  INACTIVE
+  ARCHIVED
 }
 
-
 enum ProductReviewStatus {
-    PENDING
-    APPROVED
-    REJECTED
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum CouponType {
-    PERCENTAGE
-    FIXED_AMOUNT
+  PERCENTAGE
+  FIXED_AMOUNT
 }
 
 enum CouponStatus {
-    ACTIVE
-    INACTIVE
-    EXPIRES
+  ACTIVE
+  INACTIVE
+  EXPIRES
 }
 
 enum OrderStatus {
-    PENDING
-    CONFIRMED
-    PROCESSING
-    READY_TO_SHIP
-    SHIPPED
-    OUT_FOR_DELIVERY
-    DELIVERED
-    CANCELLED
-    RETURNED
-    FAILED
+  PENDING
+  CONFIRMED
+  PROCESSING
+  READY_TO_SHIP
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURNED
+  FAILED
 }
-
-
 
 enum ShippingStatus {
-    PENDING
-    CONFIRMED
-    PICKED_UP
-    IN_TRANSIT
-    OUT_FOR_DELIVERY
-    DELIVERED
-    FAILED
-    RETURNED
+  PENDING
+  CONFIRMED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  RETURNED
 }
 
-
-
 enum PaymentMethod {
-    CASH_ON
-    CARD
-    MOBILE_BANKING
+  CASH_ON
+  CARD
+  MOBILE_BANKING
 }
 
 enum PaymentStatus {
-    PENDING
-    PROCESSING
-    PAID
-    FAILED
-    CANCELLED
-    REFUNDED
-    PARTIALLY_REFUNDED
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
 }
 
 enum RefundStatus {
-    PENDING
-    APPROVED
-    PROCESSING
-    COMPLETED
-    REJECTED
-    FAILED
-    CANCELLED
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  FAILED
+  CANCELLED
 }
-
 
 enum GatewayProvider {
-    CASH_ON
-    BKASH
-    STRIPE
-    SSLCOMMERZ
+  CASH_ON
+  BKASH
+  STRIPE
+  SSLCOMMERZ
 }
 
-
-
-enum BannerPosition{
-    HOME_HERO
-    HOME_MIDDLE
-    HOME_BOTTOM
-    CATEGORY
+enum BannerPosition {
+  HOME_HERO
+  HOME_MIDDLE
+  HOME_BOTTOM
+  CATEGORY
 }
-
 
 enum BannerStatus {
-    DRAFT
-    ARCHIVED
-    INACTIVE
-    ACTIVE
+  DRAFT
+  ARCHIVED
+  INACTIVE
+  ACTIVE
 }
 
-
 enum FaqStatus {
-    DRAFT
-    PUBLISHED
-    ARCHIVED
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 enum NotificationType {
-    ORDER
-    PAYMENT
-    SHIPPING
-    PROMOTION
-    ACCOUNT
-    SYSTEM
+  ORDER
+  PAYMENT
+  SHIPPING
+  PROMOTION
+  ACCOUNT
+  SYSTEM
 }
 
-enum NotificationPriority{
-    LOW
-    NORMAL
-    HIGH
-    URGENT
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
 
+enum NotificationChannels {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+}
 
-enum NotificationChannel {
-    IN_APP
-    EMAIL
-    SMS
-    PUSH
+enum ContactMessageCategory {
+  GENERAL
+  ORDER
+  PAYMENT
+  SHIPPING
+  RETURN_REFUND
+  PRODUCT
+  TECHNICAL
+  OTHER
+}
+
+enum ContactMessageStatus {
+  NEW
+  IN_PROGRESS
+  REPLIED
+  RESOLVED
+  SPAM
 }

@@ -1,29 +1,35 @@
 model Orders {
-    id String @id @default(uuid())
-    orderNumber String @db.VarChar(15)
-    userId String
-    customerName String @db.VarChar(50)
-    customerEmail String @db.VarChar(50)
-    customerPhone String @db.VarChar(15)
-    items OrderItems[]
-    shippingAddress  OrderAddresses?
-    payment  Payments?
-    shipping  Shippings? 
-    status ShippingStatus @default(PENDING)
-    subtotal Int
-    discountAmount Int
-    shippingCost Int
-    taxAmount Int
-    totalAmount Int
-    customerNote  String? @db.VarChar(200)
-    adminNote String? @db.VarChar(200)
-    confirmedAt DateTime?
-    deliveredAt DateTime?
-    cancelledAt DateTime?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt()
+  id             String         @id @default(uuid()) @db.Uuid
+  orderNumber    String         @db.VarChar(15)
+  userId         String         @db.Uuid
+  customerName   String         @db.VarChar(50)
+  customerEmail  String         @db.VarChar(50)
+  customerPhone  String         @db.VarChar(15)
+  payment        Payments?
+  shipping       Shippings?
+  status         ShippingStatus @default(PENDING)
+  subtotal       Int
+  discountAmount Int
+  shippingCost   Int
+  taxAmount      Int
+  totalAmount    Int
+  customerNote   String?        @db.VarChar(200)
+  adminNote      String?        @db.VarChar(200)
+  confirmedAt    DateTime?
+  deliveredAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt()
 
-    @@index([userId])
-    @@index([status])
-    @@index([createdAt])
+  user Users @relation(fields: [userId], references: [id])
+
+  items            OrderItems[]
+  couponUsages     CouponUsages[]
+  refunds          Refunds[]
+  stockManagements StockManagements[]
+  shippingAddress  OrderAddresses[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
