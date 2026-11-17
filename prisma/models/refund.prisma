@@ -1,9 +1,9 @@
 model Refunds {
   id                   String       @id @default(uuid()) @db.Uuid
-  orderId              String       @db.Uuid
-  paymentId            String       @db.Uuid
+  orderId              String       @unique @db.Uuid
+  paymentId            String       @unique @db.Uuid
   refundNumber         String       @db.VarChar(10)
-  amount               Int
+  amount               Decimal      @db.Decimal(10,2)
   currency             String       @db.VarChar(5)
   description          String?      @db.VarChar(255)
   status               RefundStatus @default(PENDING)
@@ -15,8 +15,8 @@ model Refunds {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt()
 
-  order   Orders   @relation(fields: [orderId], references: [id])
-  payment Payments @relation(fields: [paymentId], references: [id])
+  order   Orders   @relation(fields: [orderId], references: [id] , onDelete : Restrict)
+  payment Payments @relation(fields: [paymentId], references: [id] , onDelete : Restrict)
 
   @@index([orderId])
   @@index([paymentId])

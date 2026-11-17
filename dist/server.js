@@ -40,6 +40,52 @@ var notFound = (req, res) => {
   });
 };
 
+// src/routes/index.ts
+import { Router as Router2 } from "express";
+
+// src/modules/auth/auth.routes.ts
+import { Router } from "express";
+
+// src/modules/auth/auth.service.ts
+var registerUserOnDB = async (payload) => {
+  return await payload;
+};
+var AuthServices = {
+  registerUserOnDB
+};
+
+// src/modules/auth/auth.controller.ts
+var registerUser = async (req, res) => {
+  const authInfo = req.body;
+  const result = await AuthServices.registerUserOnDB(authInfo);
+  sendResponse(res, {
+    statusCode: 200,
+    message: "User Registered Successfully!",
+    success: true,
+    data: result
+  });
+};
+var AuthControllers = {
+  registerUser
+};
+
+// src/middlewares/multer.ts
+import multer from "multer";
+var upload = multer({
+  storage: multer.memoryStorage()
+});
+var multer_default = upload;
+
+// src/modules/auth/auth.routes.ts
+var router = Router();
+router.post("/register", multer_default.none(), AuthControllers.registerUser);
+var authRoutes = router;
+
+// src/routes/index.ts
+var router2 = Router2();
+router2.use("/auth", authRoutes);
+var routes_default = router2;
+
 // src/app.ts
 var app = express();
 app.use(helmet());
@@ -60,8 +106,7 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(
   express.urlencoded({
-    extended: true,
-    limit: "1mb"
+    extended: true
   })
 );
 app.use(cookieParser());
@@ -71,6 +116,7 @@ app.get("/", (req, res) => {
 app.get("/api/v1", (req, res) => {
   res.send("Welcome to CCL E-commerce server version 1 is boosted on\u{1F525}\u{1F525}!");
 });
+app.use("/api/v1", routes_default);
 app.use(notFound);
 var app_default = app;
 

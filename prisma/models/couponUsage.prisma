@@ -2,16 +2,16 @@ model CouponUsages {
   id             String   @id @default(uuid()) @db.Uuid
   couponId       String   @db.Uuid
   userId         String   @db.Uuid
-  orderId        String   @db.Uuid
+  orderId        String   @unique @db.Uuid
   usedAt         DateTime
   couponCode     String   @db.VarChar(30)
-  discountAmount Int?
+  discountAmount Decimal @db.Decimal(10,2) @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt()
 
-  coupon Coupons @relation(fields: [couponId], references: [id])
-  user   Users   @relation(fields: [userId], references: [id])
-  order  Orders  @relation(fields: [orderId], references: [id])
+  coupon Coupons @relation(fields: [couponId], references: [id] )
+  user   Users   @relation(fields: [userId], references: [id] )
+  order  Orders  @relation(fields: [orderId], references: [id] , onDelete : Cascade)
 
   @@unique([couponId, userId, orderId])
   @@index([couponId, userId])

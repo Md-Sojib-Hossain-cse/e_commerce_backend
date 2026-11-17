@@ -13,7 +13,6 @@ model Brands {
   status          BrandStatus @default(INACTIVE)
 
   products   Products[]
-  orderItems OrderItems[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()

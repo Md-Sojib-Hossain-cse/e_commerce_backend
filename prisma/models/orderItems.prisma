@@ -1,9 +1,7 @@
 model OrderItems {
   id             String   @id @default(uuid()) @db.Uuid
   orderId        String   @db.Uuid
-  productId      String   @db.Uuid
   variantId      String   @db.Uuid
-  brandId        String   @db.Uuid
   description    String?  @db.VarChar(255)
   categories     String
   productName    String   @db.VarChar(100)
@@ -12,20 +10,17 @@ model OrderItems {
   sku            String   @db.VarChar(50)
   variantName    String   @db.VarChar(100)
   quantity       Int
-  unitPrice      Int
-  discountAmount Int      @default(0)
-  totalPrice     Int
+  unitPrice      Decimal  @db.Decimal(10,2)
+  discountAmount Decimal  @db.Decimal(10,2) @default(0)
+  totalPrice     Decimal  @db.Decimal(10,2)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt()
 
-  order   Orders          @relation(fields: [orderId], references: [id])
-  product Products        @relation(fields: [productId], references: [id])
-  variant ProductVariants @relation(fields: [variantId], references: [id])
-  brand   Brands          @relation(fields: [brandId], references: [id])
+  order   Orders          @relation(fields: [orderId], references: [id] , onDelete : Cascade)
+  variant ProductVariants @relation(fields: [variantId], references: [id] , onDelete : Cascade)
 
   stockManagements StockManagements[]
 
   @@index([orderId])
-  @@index([productId])
   @@index([variantId])
 }

@@ -4,15 +4,15 @@ model Payments {
   method      PaymentMethod @default(CASH_ON)
   status      PaymentStatus @default(PENDING)
   description String?       @db.Text()
-  amount      Int
+  amount      Decimal       @db.Decimal(10,2)
   currency    String        @default("BDT")
   gatewayInfo Json          @db.JsonB
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt()
 
-  order Orders @relation(fields: [orderId], references: [id])
+  order Orders @relation(fields: [orderId], references: [id] , onDelete : Restrict)
 
-  refunds Refunds[]
+  refunds Refunds?
 
   @@index([orderId])
   @@index([status])

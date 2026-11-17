@@ -15,11 +15,12 @@ model Users {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt()
 
+
+  carts            Carts?
+  wishlists        Wishlists?
   addresses        Addresses[]
-  carts            Carts[]
   contactMessages  ContactMessages[]
   couponUsages     CouponUsages[]
-  wishlists        Wishlists[]
   stockManagements StockManagements[]
   productReviews   ProductReviews[]
   notifications    Notifications[]
