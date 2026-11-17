@@ -10,6 +10,7 @@ import pino from "pino-http";
 import { config } from "./config";
 import { notFound } from "./middlewares/notFound";
 import router from "./routes";
+import globalErrorHandler from "./middlewares/globalErrorHandler";
 
 const app: Application = express();
 
@@ -58,5 +59,7 @@ app.get("/api/v1", (req: Request, res: Response) => {
 app.use("/api/v1", router);
 
 app.use(notFound);
+
+app.use(globalErrorHandler);
 
 export default app;
