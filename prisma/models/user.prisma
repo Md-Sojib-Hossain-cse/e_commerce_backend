@@ -3,6 +3,7 @@ model Users {
   email           String     @unique @db.VarChar(50)
   name            String     @db.VarChar(50)
   password        String?    @db.Text()
+  googleId        String?    @unique @db.Text()
   dateOfBirth     DateTime?
   phone           String?    @unique @db.VarChar(15)
   image           String?    @db.Text()

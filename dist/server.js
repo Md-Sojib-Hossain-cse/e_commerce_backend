@@ -16,7 +16,7 @@ import pino from "pino-http";
 // src/config/index.ts
 import dotenv from "dotenv";
 import path from "path";
-dotenv.config({ path: path.join(process.cwd() + ".env") });
+dotenv.config({ path: path.join(process.cwd(), ".env") });
 var config = {
   port: process.env.PORT || 5e3,
   database_url: process.env.DATABASE_URL,
@@ -656,7 +656,7 @@ var adapter = new PrismaPg({ connectionString });
 var prisma = new PrismaClient({ adapter });
 
 // src/modules/auth/auth.service.ts
-import jwt from "jsonwebtoken";
+import "jsonwebtoken";
 
 // src/errors/appError.ts
 var AppError = class extends Error {
@@ -671,14 +671,18 @@ var appError_default = AppError;
 
 // src/modules/auth/auth.service.ts
 import httpStatus from "http-status";
+
+// src/utils/jwtUtils.ts
+import jwt from "jsonwebtoken";
+var generateToken = (payload, secret, expiresIn) => {
+  return jwt.sign(payload, secret, { expiresIn });
+};
+
+// src/modules/auth/auth.service.ts
 var registerUserOnDB = async (payload) => {
   const { password } = payload;
   const name = payload.name.trim();
-  const email2 = payload.email.toLocaleLowerCase().trim();
-  const hashedPassword = await bcrypt.hash(
-    password,
-    Number(config.bcrypt_salt_rounds)
-  );
+  const email2 = payload.email.toLowerCase().trim();
   const isUserExists = await prisma.users.findUnique({
     where: {
       email: email2
@@ -690,6 +694,10 @@ var registerUserOnDB = async (payload) => {
       "User with this email already exists!"
     );
   }
+  const hashedPassword = await bcrypt.hash(
+    password,
+    Number(config.bcrypt_salt_rounds)
+  );
   const user = await prisma.users.create({
     data: {
       name,
@@ -705,34 +713,71 @@ var registerUserOnDB = async (payload) => {
   });
   return user;
 };
+var loginUserFromDB = async (payload) => {
+  const { password } = payload;
+  const email2 = payload.email.toLowerCase().trim();
+  const isUserExists = await prisma.users.findUnique({
+    where: {
+      email: email2
+    }
+  });
+  if (!isUserExists || !isUserExists.password) {
+    throw new appError_default(httpStatus.UNAUTHORIZED, "Invalid email or password");
+  }
+  const isPasswordMatched = await bcrypt.compare(
+    password,
+    isUserExists.password
+  );
+  if (!isPasswordMatched) {
+    throw new appError_default(httpStatus.UNAUTHORIZED, "Invalid email or password");
+  }
+  if (isUserExists.isDeleted) {
+    throw new appError_default(
+      httpStatus.NOT_FOUND,
+      "This account has been deleted. Please contact support if you believe this is a mistake."
+    );
+  }
+  if (isUserExists.status === "INACTIVE") {
+    throw new appError_default(
+      httpStatus.FORBIDDEN,
+      "Your account is currently inactive. Please activate your account or contact support for assistance."
+    );
+  }
+  if (isUserExists.status === "SUSPENDED") {
+    throw new appError_default(
+      httpStatus.FORBIDDEN,
+      "Your account has been suspended. Please reach out to our support team for further information."
+    );
+  }
+  const jwtPayload = {
+    id: isUserExists.id,
+    name: isUserExists.name,
+    email: isUserExists.email,
+    role: isUserExists.role
+  };
+  const accessToken = generateToken(
+    jwtPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in
+  );
+  const refreshToken = generateToken(
+    jwtPayload,
+    config.jwt_refresh_secret,
+    config.jwt_refresh_expires_in
+  );
+  console.log({ accessToken, refreshToken });
+  return {
+    accessToken,
+    refreshToken
+  };
+};
 var AuthServices = {
-  registerUserOnDB
+  registerUserOnDB,
+  loginUserFromDB
 };
 
 // src/modules/auth/auth.controller.ts
-var registerUser = async (req, res) => {
-  const authInfo = req.body;
-  const result = await AuthServices.registerUserOnDB(authInfo);
-  sendResponse(res, {
-    statusCode: 200,
-    message: "User Registered Successfully!",
-    success: true,
-    data: result
-  });
-};
-var AuthControllers = {
-  registerUser
-};
-
-// src/middlewares/multer.ts
-import multer from "multer";
-var upload = multer({
-  storage: multer.memoryStorage()
-});
-var multer_default = upload;
-
-// src/middlewares/validateSchema.ts
-import "zod";
+import httpStatus2 from "http-status";
 
 // src/utils/catchAsync.ts
 var catchAsync = (fn) => {
@@ -746,7 +791,59 @@ var catchAsync = (fn) => {
 };
 var catchAsync_default = catchAsync;
 
+// src/modules/auth/auth.controller.ts
+var registerUser = catchAsync_default(
+  async (req, res, next) => {
+    const authInfo = req.body;
+    const result = await AuthServices.registerUserOnDB(authInfo);
+    sendResponse(res, {
+      statusCode: httpStatus2.CREATED,
+      message: "User Registered Successfully!",
+      success: true,
+      data: result
+    });
+  }
+);
+var loginUser = catchAsync_default(
+  async (req, res, next) => {
+    const authInfo = req.body;
+    const result = await AuthServices.loginUserFromDB(authInfo);
+    res.cookie("accessToken", result.accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "none",
+      maxAge: 1e3 * 60 * 60 * 24 * 7
+      // 1 day
+    });
+    res.cookie("refreshToken", result.refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "none",
+      maxAge: 1e3 * 60 * 60 * 24 * 30
+      // 30 day
+    });
+    sendResponse(res, {
+      statusCode: httpStatus2.OK,
+      message: "User Logged In Successfully!",
+      success: true,
+      data: result
+    });
+  }
+);
+var AuthControllers = {
+  registerUser,
+  loginUser
+};
+
+// src/middlewares/multer.ts
+import multer from "multer";
+var upload = multer({
+  storage: multer.memoryStorage()
+});
+var multer_default = upload;
+
 // src/middlewares/validateSchema.ts
+import "zod";
 var validateSchema = (schema) => {
   return catchAsync_default(async (req, res, next) => {
     const validatedData = schema.parse(req.body);
@@ -765,6 +862,10 @@ var UserRegistrationValidationSchema = z2.object({
     "Password must contain uppercase, lowercase, number, and special character!"
   )
 });
+var UserLoginValidationSchema = z2.object({
+  email: z2.email("Please provide a valid email address").toLowerCase().trim(),
+  password: z2.string().min(1, "Password is required").max(72, "Invalid credentials")
+});
 
 // src/modules/auth/auth.routes.ts
 var router = Router();
@@ -774,6 +875,12 @@ router.post(
   validateSchema(UserRegistrationValidationSchema),
   AuthControllers.registerUser
 );
+router.post(
+  "/login",
+  multer_default.none(),
+  validateSchema(UserLoginValidationSchema),
+  AuthControllers.loginUser
+);
 var authRoutes = router;
 
 // src/routes/index.ts
@@ -782,10 +889,10 @@ router2.use("/auth", authRoutes);
 var routes_default = router2;
 
 // src/middlewares/globalErrorHandler.ts
-import httpStatus2 from "http-status";
+import httpStatus3 from "http-status";
 import { ZodError } from "zod";
 var globalErrorHandler = (error, req, res, next) => {
-  let statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
+  let statusCode = httpStatus3.INTERNAL_SERVER_ERROR;
   let message = "Something went wrong!";
   let errorName = "InternalServerError";
   let errors = [];
@@ -794,7 +901,7 @@ var globalErrorHandler = (error, req, res, next) => {
     message = error.message;
     errorName = error.name;
   } else if (error instanceof ZodError) {
-    statusCode = httpStatus2.BAD_REQUEST;
+    statusCode = httpStatus3.BAD_REQUEST;
     message = "Validation failed!";
     errorName = "ZodError";
     errors = error.issues.map((issue) => ({
@@ -802,90 +909,90 @@ var globalErrorHandler = (error, req, res, next) => {
       message: issue.message
     }));
   } else if (error instanceof prismaNamespace_exports.PrismaClientValidationError) {
-    statusCode = httpStatus2.BAD_REQUEST;
+    statusCode = httpStatus3.BAD_REQUEST;
     message = "Invalid database query. Please check the provided data.";
     errorName = "PrismaValidationError";
   } else if (error instanceof prismaNamespace_exports.PrismaClientKnownRequestError) {
     errorName = "PrismaKnownRequestError";
     switch (error.code) {
       case "P2000":
-        statusCode = httpStatus2.BAD_REQUEST;
+        statusCode = httpStatus3.BAD_REQUEST;
         message = "The provided value is too long for this database column.";
         break;
       case "P2001":
-        statusCode = httpStatus2.NOT_FOUND;
+        statusCode = httpStatus3.NOT_FOUND;
         message = "The requested record does not exist.";
         break;
       case "P2002":
-        statusCode = httpStatus2.CONFLICT;
+        statusCode = httpStatus3.CONFLICT;
         message = "A record with this value already exists.";
         break;
       case "P2003":
-        statusCode = httpStatus2.BAD_REQUEST;
+        statusCode = httpStatus3.BAD_REQUEST;
         message = "Foreign key constraint failed.";
         break;
       case "P2004":
-        statusCode = httpStatus2.BAD_REQUEST;
+        statusCode = httpStatus3.BAD_REQUEST;
         message = "A database constraint failed.";
         break;
       case "P2011":
-        statusCode = httpStatus2.BAD_REQUEST;
+        statusCode = httpStatus3.BAD_REQUEST;
         message = "A required database field cannot be null.";
         break;
       case "P2012":
-        statusCode = httpStatus2.BAD_REQUEST;
+        statusCode = httpStatus3.BAD_REQUEST;
         message = "A required value is missing.";
         break;
       case "P2014":
-        statusCode = httpStatus2.BAD_REQUEST;
+        statusCode = httpStatus3.BAD_REQUEST;
         message = "The requested change violates a relation constraint.";
         break;
       case "P2015":
       case "P2018":
-        statusCode = httpStatus2.NOT_FOUND;
+        statusCode = httpStatus3.NOT_FOUND;
         message = "A related record could not be found.";
         break;
       case "P2025":
-        statusCode = httpStatus2.NOT_FOUND;
+        statusCode = httpStatus3.NOT_FOUND;
         message = "The requested record was not found.";
         break;
       case "P2023":
-        statusCode = httpStatus2.BAD_REQUEST;
+        statusCode = httpStatus3.BAD_REQUEST;
         message = "Invalid data provided for a database field.";
         break;
       default:
-        statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus3.INTERNAL_SERVER_ERROR;
         message = "A database operation failed.";
     }
   } else if (error instanceof prismaNamespace_exports.PrismaClientInitializationError) {
     errorName = "PrismaInitializationError";
     switch (error.errorCode) {
       case "P1000":
-        statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus3.INTERNAL_SERVER_ERROR;
         message = "Database authentication failed.";
         break;
       case "P1001":
-        statusCode = httpStatus2.SERVICE_UNAVAILABLE;
+        statusCode = httpStatus3.SERVICE_UNAVAILABLE;
         message = "Unable to connect to the database server.";
         break;
       case "P1002":
-        statusCode = httpStatus2.SERVICE_UNAVAILABLE;
+        statusCode = httpStatus3.SERVICE_UNAVAILABLE;
         message = "Database connection timed out.";
         break;
       case "P1003":
-        statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus3.INTERNAL_SERVER_ERROR;
         message = "The requested database does not exist.";
         break;
       default:
-        statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus3.INTERNAL_SERVER_ERROR;
         message = "Database initialization failed.";
     }
   } else if (error instanceof prismaNamespace_exports.PrismaClientUnknownRequestError) {
-    statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
+    statusCode = httpStatus3.INTERNAL_SERVER_ERROR;
     message = "An unknown database query error occurred.";
     errorName = "PrismaUnknownRequestError";
   } else if (error instanceof prismaNamespace_exports.PrismaClientRustPanicError) {
-    statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
+    statusCode = httpStatus3.INTERNAL_SERVER_ERROR;
     message = "A critical database engine error occurred.";
     errorName = "PrismaRustPanicError";
   } else if (error instanceof Error) {

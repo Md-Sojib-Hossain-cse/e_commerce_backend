@@ -47,7 +47,23 @@ const loginUser = catchAsync(
   },
 );
 
+const googleAuth = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const clientId = req.body;
+
+    const result = await AuthServices.googleAuthService(clientId);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: "Google Authentication Successful!",
+      success: true,
+      data: result,
+    });
+  },
+);
+
 export const AuthControllers = {
   registerUser,
   loginUser,
+  googleAuth,
 };
