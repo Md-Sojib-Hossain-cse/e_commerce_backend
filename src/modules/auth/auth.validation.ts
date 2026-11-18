@@ -15,3 +15,11 @@ export const UserRegistrationValidationSchema = z.object({
       "Password must contain uppercase, lowercase, number, and special character!",
     ),
 });
+
+export const UserLoginValidationSchema = z.object({
+  email: z.email("Please provide a valid email address").toLowerCase().trim(),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .max(72, "Invalid credentials"),
+});

@@ -18,15 +18,15 @@ import dotenv from "dotenv";
 import path from "path";
 dotenv.config({ path: path.join(process.cwd() + ".env") });
 var config = {
-  port: process.env.PORT,
+  port: process.env.PORT || 5e3,
   database_url: process.env.DATABASE_URL,
-  frontend_url_dev: process.env.FRONTEND_URL_DEV,
-  node_env: process.env.NODE_ENV,
-  bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
+  frontend_url_dev: process.env.FRONTEND_URL_DEV || "http://localhost:3000",
+  node_env: process.env.NODE_ENV || "development",
+  bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS || 12,
   jwt_access_secret: process.env.JWT_ACCESS_SECRET,
   jwt_refresh_secret: process.env.JWT_REFRESH_SECRET,
-  jwt_access_expires_in: process.env.JWT_ACCESS_EXPIRES_IN,
-  jwt_refresh_expires_in: process.env.JWT_REFRESH_EXPIRES_IN
+  jwt_access_expires_in: process.env.JWT_ACCESS_EXPIRES_IN || "1d",
+  jwt_refresh_expires_in: process.env.JWT_REFRESH_EXPIRES_IN || "30d"
 };
 
 // src/utils/sendResponse.ts
@@ -657,17 +657,50 @@ var prisma = new PrismaClient({ adapter });
 
 // src/modules/auth/auth.service.ts
 import jwt from "jsonwebtoken";
+
+// src/errors/appError.ts
+var AppError = class extends Error {
+  statusCode;
+  constructor(statusCode, message) {
+    super(message);
+    this.statusCode = statusCode;
+    Error.captureStackTrace(this, this.constructor);
+  }
+};
+var appError_default = AppError;
+
+// src/modules/auth/auth.service.ts
+import httpStatus from "http-status";
 var registerUserOnDB = async (payload) => {
-  const { name, email: email2, password } = payload;
+  const { password } = payload;
+  const name = payload.name.trim();
+  const email2 = payload.email.toLocaleLowerCase().trim();
   const hashedPassword = await bcrypt.hash(
     password,
     Number(config.bcrypt_salt_rounds)
   );
+  const isUserExists = await prisma.users.findUnique({
+    where: {
+      email: email2
+    }
+  });
+  if (isUserExists) {
+    throw new appError_default(
+      httpStatus.CONFLICT,
+      "User with this email already exists!"
+    );
+  }
   const user = await prisma.users.create({
     data: {
       name,
       email: email2,
       password: hashedPassword
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true
     }
   });
   return user;
@@ -749,23 +782,10 @@ router2.use("/auth", authRoutes);
 var routes_default = router2;
 
 // src/middlewares/globalErrorHandler.ts
-import httpStatus from "http-status";
-
-// src/errors/appError.ts
-var AppError = class extends Error {
-  statusCode;
-  constructor(statusCode, message) {
-    super(message);
-    this.statusCode = statusCode;
-    Error.captureStackTrace(this, this.constructor);
-  }
-};
-var appError_default = AppError;
-
-// src/middlewares/globalErrorHandler.ts
+import httpStatus2 from "http-status";
 import { ZodError } from "zod";
 var globalErrorHandler = (error, req, res, next) => {
-  let statusCode = httpStatus.INTERNAL_SERVER_ERROR;
+  let statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
   let message = "Something went wrong!";
   let errorName = "InternalServerError";
   let errors = [];
@@ -774,7 +794,7 @@ var globalErrorHandler = (error, req, res, next) => {
     message = error.message;
     errorName = error.name;
   } else if (error instanceof ZodError) {
-    statusCode = httpStatus.BAD_REQUEST;
+    statusCode = httpStatus2.BAD_REQUEST;
     message = "Validation failed!";
     errorName = "ZodError";
     errors = error.issues.map((issue) => ({
@@ -782,90 +802,90 @@ var globalErrorHandler = (error, req, res, next) => {
       message: issue.message
     }));
   } else if (error instanceof prismaNamespace_exports.PrismaClientValidationError) {
-    statusCode = httpStatus.BAD_REQUEST;
+    statusCode = httpStatus2.BAD_REQUEST;
     message = "Invalid database query. Please check the provided data.";
     errorName = "PrismaValidationError";
   } else if (error instanceof prismaNamespace_exports.PrismaClientKnownRequestError) {
     errorName = "PrismaKnownRequestError";
     switch (error.code) {
       case "P2000":
-        statusCode = httpStatus.BAD_REQUEST;
+        statusCode = httpStatus2.BAD_REQUEST;
         message = "The provided value is too long for this database column.";
         break;
       case "P2001":
-        statusCode = httpStatus.NOT_FOUND;
+        statusCode = httpStatus2.NOT_FOUND;
         message = "The requested record does not exist.";
         break;
       case "P2002":
-        statusCode = httpStatus.CONFLICT;
+        statusCode = httpStatus2.CONFLICT;
         message = "A record with this value already exists.";
         break;
       case "P2003":
-        statusCode = httpStatus.BAD_REQUEST;
+        statusCode = httpStatus2.BAD_REQUEST;
         message = "Foreign key constraint failed.";
         break;
       case "P2004":
-        statusCode = httpStatus.BAD_REQUEST;
+        statusCode = httpStatus2.BAD_REQUEST;
         message = "A database constraint failed.";
         break;
       case "P2011":
-        statusCode = httpStatus.BAD_REQUEST;
+        statusCode = httpStatus2.BAD_REQUEST;
         message = "A required database field cannot be null.";
         break;
       case "P2012":
-        statusCode = httpStatus.BAD_REQUEST;
+        statusCode = httpStatus2.BAD_REQUEST;
         message = "A required value is missing.";
         break;
       case "P2014":
-        statusCode = httpStatus.BAD_REQUEST;
+        statusCode = httpStatus2.BAD_REQUEST;
         message = "The requested change violates a relation constraint.";
         break;
       case "P2015":
       case "P2018":
-        statusCode = httpStatus.NOT_FOUND;
+        statusCode = httpStatus2.NOT_FOUND;
         message = "A related record could not be found.";
         break;
       case "P2025":
-        statusCode = httpStatus.NOT_FOUND;
+        statusCode = httpStatus2.NOT_FOUND;
         message = "The requested record was not found.";
         break;
       case "P2023":
-        statusCode = httpStatus.BAD_REQUEST;
+        statusCode = httpStatus2.BAD_REQUEST;
         message = "Invalid data provided for a database field.";
         break;
       default:
-        statusCode = httpStatus.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
         message = "A database operation failed.";
     }
   } else if (error instanceof prismaNamespace_exports.PrismaClientInitializationError) {
     errorName = "PrismaInitializationError";
     switch (error.errorCode) {
       case "P1000":
-        statusCode = httpStatus.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
         message = "Database authentication failed.";
         break;
       case "P1001":
-        statusCode = httpStatus.SERVICE_UNAVAILABLE;
+        statusCode = httpStatus2.SERVICE_UNAVAILABLE;
         message = "Unable to connect to the database server.";
         break;
       case "P1002":
-        statusCode = httpStatus.SERVICE_UNAVAILABLE;
+        statusCode = httpStatus2.SERVICE_UNAVAILABLE;
         message = "Database connection timed out.";
         break;
       case "P1003":
-        statusCode = httpStatus.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
         message = "The requested database does not exist.";
         break;
       default:
-        statusCode = httpStatus.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
         message = "Database initialization failed.";
     }
   } else if (error instanceof prismaNamespace_exports.PrismaClientUnknownRequestError) {
-    statusCode = httpStatus.INTERNAL_SERVER_ERROR;
+    statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
     message = "An unknown database query error occurred.";
     errorName = "PrismaUnknownRequestError";
   } else if (error instanceof prismaNamespace_exports.PrismaClientRustPanicError) {
-    statusCode = httpStatus.INTERNAL_SERVER_ERROR;
+    statusCode = httpStatus2.INTERNAL_SERVER_ERROR;
     message = "A critical database engine error occurred.";
     errorName = "PrismaRustPanicError";
   } else if (error instanceof Error) {
