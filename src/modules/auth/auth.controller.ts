@@ -29,29 +29,44 @@ const loginUser = catchAsync(
       httpOnly: true,
       secure: false,
       sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 1 day
+      maxAge: 1000 * 60 * 60 * 24 * 1, // 1 day
     });
     res.cookie("refreshToken", result.refreshToken, {
       httpOnly: true,
       secure: false,
       sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 day
+      maxAge: result.isRemember
+        ? 1000 * 60 * 60 * 24 * 30 // 30day
+        : 1000 * 60 * 60 * 24 * 1, // 1 day
     });
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
       message: "User Logged In Successfully!",
       success: true,
-      data: result,
+      data: null,
     });
   },
 );
 
 const googleAuth = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const clientId = req.body;
+    const payload = req.body;
 
-    const result = await AuthServices.googleAuthService(clientId);
+    const result = await AuthServices.googleAuthService(payload);
+
+    res.cookie("accessToken", result.accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24 * 1, // 1 day
+    });
+    res.cookie("refreshToken", result.refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30day
+    });
 
     sendResponse(res, {
       statusCode: httpStatus.OK,

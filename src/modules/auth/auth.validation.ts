@@ -22,4 +22,8 @@ export const UserLoginValidationSchema = z.object({
     .string()
     .min(1, "Password is required")
     .max(72, "Invalid credentials"),
+  isRemember: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
 });

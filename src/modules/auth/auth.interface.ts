@@ -7,6 +7,7 @@ export type TRegister = {
 export type TLogin = {
   email: string;
   password: string;
+  isRemember?: boolean;
 };
 
 export type TGoogleLogin = {

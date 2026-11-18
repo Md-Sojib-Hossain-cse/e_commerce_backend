@@ -1,3 +1,4 @@
+import { jwtUtils } from "./../../utils/jwtUtils";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma";
 import type { TGoogleLogin, TLogin, TRegister } from "./auth.interface";
@@ -5,7 +6,6 @@ import { config } from "../../config";
 import { type SignOptions } from "jsonwebtoken";
 import AppError from "../../errors/appError";
 import httpStatus from "http-status";
-import { generateToken } from "../../utils/jwtUtils";
 import { googleClient } from "../../lib/google";
 
 //user registration using email and password
@@ -54,7 +54,7 @@ const registerUserOnDB = async (payload: TRegister) => {
 
 //user login using email and password
 const loginUserFromDB = async (payload: TLogin) => {
-  const { password } = payload;
+  const { password, isRemember } = payload;
   const email = payload.email.toLowerCase().trim();
 
   //is user information exist on DB
@@ -107,21 +107,22 @@ const loginUserFromDB = async (payload: TLogin) => {
     role: isUserExists.role,
   };
 
-  const accessToken = generateToken(
+  const accessToken = jwtUtils.generateToken(
     jwtPayload,
     config.jwt_access_secret,
-    config.jwt_access_expires_in as SignOptions,
+    (isRemember ? config.jwt_access_expires_in : "1d") as SignOptions,
   );
 
-  const refreshToken = generateToken(
+  const refreshToken = jwtUtils.generateToken(
     jwtPayload,
     config.jwt_refresh_secret,
-    config.jwt_refresh_expires_in as SignOptions,
+    (isRemember ? config.jwt_refresh_expires_in : "1d") as SignOptions,
   );
 
   return {
     accessToken,
     refreshToken,
+    isRemember,
   };
 };
 
@@ -207,13 +208,13 @@ const googleAuthService = async (payload: TGoogleLogin) => {
     role: user.role,
   };
 
-  const accessToken = generateToken(
+  const accessToken = jwtUtils.generateToken(
     jwtPayload,
     config.jwt_access_secret,
     config.jwt_access_expires_in as SignOptions,
   );
 
-  const refreshToken = generateToken(
+  const refreshToken = jwtUtils.generateToken(
     jwtPayload,
     config.jwt_refresh_secret,
     config.jwt_refresh_expires_in as SignOptions,
