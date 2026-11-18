@@ -3,7 +3,7 @@ import * as z from "zod";
 export const UserRegistrationValidationSchema = z.object({
   name: z
     .string()
-    .min(1, "Name Can't be less then 1 Characters")
+    .min(2, "Name Can't be less then 2 Characters")
     .max(50, "Name Can't be More then 50 Character!"),
   email: z.email(),
   password: z
