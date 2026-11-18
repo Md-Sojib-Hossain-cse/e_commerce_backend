@@ -3,10 +3,15 @@ import catchAsync from "../../utils/catchAsync";
 import { UserServices } from "./user.service";
 import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
+import type { TDecodedUser } from "../../types";
 
 const getMyUserInfo = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const result = await UserServices.getMyUserInfoFromDB();
+    const userInfo = req.user;
+
+    const result = await UserServices.getMyUserInfoFromDB(
+      userInfo as TDecodedUser,
+    );
 
     sendResponse(res, {
       success: true,
