@@ -27,3 +27,7 @@ export const UserLoginValidationSchema = z.object({
     .transform((value) => value === "true")
     .optional(),
 });
+
+export const UserForgetPasswordValidationSchema = z.object({
+  email: z.email(),
+});

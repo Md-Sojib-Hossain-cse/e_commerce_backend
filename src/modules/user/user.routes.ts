@@ -9,6 +9,7 @@ import {
   updateProfilePictureValidationSchema,
 } from "./user.validation";
 import { uploadSingleImage, uploadTextOnly } from "../../middlewares/multer";
+import { profilePictureUpdateLimiter } from "../../middlewares/rateLimiter";
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.patch(
 );
 router.patch(
   "/me/update-profile-picture",
+  profilePictureUpdateLimiter,
   auth(UserRoles.CUSTOMER, UserRoles.STUFF, UserRoles.ADMIN),
   uploadSingleImage("image"),
   validateSchema(updateProfilePictureValidationSchema),

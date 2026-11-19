@@ -1,12 +1,18 @@
 import { jwtUtils } from "./../../utils/jwtUtils";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma";
-import type { TGoogleLogin, TLogin, TRegister } from "./auth.interface";
+import type {
+  TForgetPassword,
+  TGoogleLogin,
+  TLogin,
+  TRegister,
+} from "./auth.interface";
 import { config } from "../../config";
 import { type SignOptions } from "jsonwebtoken";
 import AppError from "../../errors/appError";
 import httpStatus from "http-status";
 import { googleClient } from "../../lib/google";
+import { sendForgetPasswordEmail } from "../../lib/nodeMailer";
 
 //user registration using email and password
 const registerUserOnDB = async (payload: TRegister) => {
@@ -234,8 +240,19 @@ const googleAuthService = async (payload: TGoogleLogin) => {
   return { userWithoutPassword, accessToken, refreshToken };
 };
 
+const forgetPasswordService = async (payload: TForgetPassword) => {
+  const response = await sendForgetPasswordEmail(
+    "mdemran500600@gmail.com",
+    "Password Reset Email",
+    "Sojib Hossain",
+    "https://ecommercetemplate-azure.vercel.app",
+  );
+  return response;
+};
+
 export const AuthServices = {
   registerUserOnDB,
   loginUserFromDB,
   googleAuthService,
+  forgetPasswordService,
 };

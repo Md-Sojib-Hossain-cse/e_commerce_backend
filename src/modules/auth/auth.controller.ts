@@ -77,8 +77,24 @@ const googleAuth = catchAsync(
   },
 );
 
+const forgetPassword = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const payload = req.body;
+
+    const result = await AuthServices.forgetPasswordService(payload);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: "Check out your email account for password reset link!",
+      success: true,
+      data: result,
+    });
+  },
+);
+
 export const AuthControllers = {
   registerUser,
   loginUser,
   googleAuth,
+  forgetPassword,
 };

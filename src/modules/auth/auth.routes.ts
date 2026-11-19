@@ -2,10 +2,12 @@ import { Router } from "express";
 import { AuthControllers } from "./auth.controller";
 import { validateSchema } from "../../middlewares/validateSchema";
 import {
+  UserForgetPasswordValidationSchema,
   UserLoginValidationSchema,
   UserRegistrationValidationSchema,
 } from "./auth.validation";
 import { uploadTextOnly } from "../../middlewares/multer";
+import { authLimiter } from "../../middlewares/rateLimiter";
 
 const router = Router();
 
@@ -18,11 +20,19 @@ router.post(
 
 router.post(
   "/login",
+  authLimiter,
   uploadTextOnly(),
   validateSchema(UserLoginValidationSchema),
   AuthControllers.loginUser,
 );
 
 router.post("/google", AuthControllers.googleAuth);
+
+router.post(
+  "/forget-password",
+  uploadTextOnly(),
+  validateSchema(UserForgetPasswordValidationSchema),
+  AuthControllers.forgetPassword,
+);
 
 export const authRoutes = router;

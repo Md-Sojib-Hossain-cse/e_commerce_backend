@@ -19,4 +19,6 @@ export const config = {
   cloudinary_client_name: process.env.CLOUDINARY_CLIENT_NAME!,
   cloudinary_api_key: process.env.CLOUDINARY_API_KEY!,
   cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET!,
+  resend_api_key: process.env.RESEND_API_KEY!,
+  smtp_pass: process.env.SMTP_PASS!,
 };

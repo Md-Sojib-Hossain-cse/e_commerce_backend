@@ -774,16 +774,10 @@ var loginUserFromDB = async (payload) => {
       "This account has been deleted. Please contact support if you believe this is a mistake."
     );
   }
-  if (isUserExists.status === "INACTIVE") {
+  if (isUserExists.status !== "ACTIVE") {
     throw new appError_default(
       httpStatus.FORBIDDEN,
-      "Your account is currently inactive. Please activate your account or contact support for assistance."
-    );
-  }
-  if (isUserExists.status === "SUSPENDED") {
-    throw new appError_default(
-      httpStatus.FORBIDDEN,
-      "Your account has been suspended. Please reach out to our support team for further information."
+      "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
   await prisma.users.update({
@@ -860,16 +854,10 @@ var googleAuthService = async (payload) => {
       "This account has been deleted. Please contact support if you believe this is a mistake."
     );
   }
-  if (user && user.status === "INACTIVE") {
+  if (user.status !== "ACTIVE") {
     throw new appError_default(
       httpStatus.FORBIDDEN,
-      "Your account is currently inactive. Please activate your account or contact support for assistance."
-    );
-  }
-  if (user && user.status === "SUSPENDED") {
-    throw new appError_default(
-      httpStatus.FORBIDDEN,
-      "Your account has been suspended. Please reach out to our support team for further information."
+      "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
   await prisma.users.update({
@@ -1087,6 +1075,7 @@ var uploadToCloudinary = async (file, folder = "e-commerce") => {
 var uploadCloudinary_default = uploadToCloudinary;
 
 // src/modules/user/user.service.ts
+import bcrypt2 from "bcryptjs";
 var getMyUserInfoFromDB = async (payload) => {
   const { id, name, email: email2, role } = payload;
   if (!id || !name || !email2 || !role) {
@@ -1124,21 +1113,15 @@ var getMyUserInfoFromDB = async (payload) => {
       "This account has been deleted. Please contact support if you believe this is a mistake."
     );
   }
-  if (result.status === "INACTIVE") {
+  if (result.status !== "ACTIVE") {
     throw new appError_default(
       httpStatus3.FORBIDDEN,
-      "Your account is currently inactive. Please activate your account or contact support for assistance."
-    );
-  }
-  if (result.status === "SUSPENDED") {
-    throw new appError_default(
-      httpStatus3.FORBIDDEN,
-      "Your account has been suspended. Please reach out to our support team for further information."
+      "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
   return result;
 };
-var updateUserOnDB = async (userId, payload) => {
+var updateMyUserInfoOnDB = async (userId, payload) => {
   if (!userId) {
     throw new appError_default(
       httpStatus3.UNAUTHORIZED,
@@ -1157,16 +1140,10 @@ var updateUserOnDB = async (userId, payload) => {
   if (!isUserExists || isUserExists.isDeleted) {
     throw new appError_default(httpStatus3.NOT_FOUND, "User profile not found!");
   }
-  if (isUserExists.status === "INACTIVE") {
+  if (isUserExists.status !== "ACTIVE") {
     throw new appError_default(
       httpStatus3.FORBIDDEN,
-      "Your account is currently inactive. Please activate your account or contact support."
-    );
-  }
-  if (isUserExists.status === "SUSPENDED") {
-    throw new appError_default(
-      httpStatus3.FORBIDDEN,
-      "Your account has been suspended. Please contact support for further information."
+      "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
   const safeUpdateData = {};
@@ -1187,16 +1164,118 @@ var updateUserOnDB = async (userId, payload) => {
   if (payload.dateOfBirth !== void 0 && new Date(payload.dateOfBirth) < /* @__PURE__ */ new Date()) {
     safeUpdateData.dateOfBirth = payload.dateOfBirth;
   }
-  const uploadedImage = payload.img?.buffer?.length ? await uploadCloudinary_default(payload.img, "user") : void 0;
-  if (uploadedImage) {
-    safeUpdateData.image = uploadedImage.secure_url;
-    safeUpdateData.imagePublicId = uploadedImage.public_id;
-  }
   if (Object.keys(safeUpdateData).length === 0) {
     throw new appError_default(
       httpStatus3.BAD_REQUEST,
       "Please provide at least one valid field to update."
     );
+  }
+  const result = await prisma.users.update({
+    where: { id: userId },
+    data: safeUpdateData,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      image: true,
+      dateOfBirth: true,
+      updatedAt: true
+    }
+  });
+  return result;
+};
+var changeMyPasswordFromDB = async (userId, payload) => {
+  const { newPassword, oldPassword, confirmPassword } = payload;
+  if (newPassword !== confirmPassword) {
+    throw new appError_default(
+      httpStatus3.BAD_REQUEST,
+      "New password and confirm password do not match."
+    );
+  }
+  if (oldPassword === confirmPassword) {
+    throw new appError_default(
+      httpStatus3.BAD_REQUEST,
+      "New password cannot be the same as your old password."
+    );
+  }
+  const user = await prisma.users.findUnique({
+    where: {
+      id: userId
+    },
+    select: {
+      password: true,
+      isDeleted: true,
+      status: true
+    }
+  });
+  if (!user || user.isDeleted) {
+    throw new appError_default(httpStatus3.NOT_FOUND, "User profile not found!");
+  }
+  if (!user.password) {
+    throw new appError_default(
+      httpStatus3.FORBIDDEN,
+      "You can't change a local password of this account!"
+    );
+  }
+  if (user.status !== "ACTIVE") {
+    throw new appError_default(
+      httpStatus3.FORBIDDEN,
+      "Your account is currently inactive or suspended. Please activate your account or contact support."
+    );
+  }
+  const isPasswordMatched = await bcrypt2.compare(oldPassword, user.password);
+  if (!isPasswordMatched) {
+    throw new appError_default(httpStatus3.UNAUTHORIZED, "Old password is incorrect");
+  }
+  const hashedNewPassword = await bcrypt2.hash(
+    confirmPassword,
+    Number(config.bcrypt_salt_rounds)
+  );
+  const result = await prisma.users.update({
+    where: {
+      id: userId
+    },
+    data: {
+      password: hashedNewPassword
+    },
+    select: {
+      updatedAt: true
+    }
+  });
+  return result;
+};
+var updateProfilePictureOnDB = async (userId, payload) => {
+  if (!payload) {
+    throw new appError_default(
+      httpStatus3.BAD_REQUEST,
+      "Please provide an image you're trying to update!"
+    );
+  }
+  const user = await prisma.users.findUnique({
+    where: {
+      id: userId
+    },
+    select: {
+      isDeleted: true,
+      status: true,
+      imagePublicId: true
+    }
+  });
+  if (!user || user.isDeleted) {
+    throw new appError_default(httpStatus3.NOT_FOUND, "User profile not found!");
+  }
+  if (user.status !== "ACTIVE") {
+    throw new appError_default(
+      httpStatus3.FORBIDDEN,
+      "Your account is currently inactive or suspended. Please activate your account or contact support."
+    );
+  }
+  const uploadedImage = payload?.buffer?.length ? await uploadCloudinary_default(payload, "user") : void 0;
+  const safeUpdateData = {};
+  if (uploadedImage) {
+    safeUpdateData.image = uploadedImage.secure_url;
+    safeUpdateData.imagePublicId = uploadedImage.public_id;
   }
   let result;
   try {
@@ -1204,18 +1283,7 @@ var updateUserOnDB = async (userId, payload) => {
       where: { id: userId },
       data: safeUpdateData,
       select: {
-        id: true,
-        email: true,
-        name: true,
-        dateOfBirth: true,
-        phone: true,
         image: true,
-        role: true,
-        status: true,
-        emailVerifiedAt: true,
-        phoneVerifiedAt: true,
-        lastLoggedInAt: true,
-        createdAt: true,
         updatedAt: true
       }
     });
@@ -1229,9 +1297,9 @@ var updateUserOnDB = async (userId, payload) => {
     }
     throw error;
   }
-  if (uploadedImage && isUserExists.imagePublicId) {
+  if (uploadedImage && user.imagePublicId) {
     try {
-      await cloudinary_default.uploader.destroy(isUserExists.imagePublicId);
+      await cloudinary_default.uploader.destroy(user.imagePublicId);
     } catch (cleanupError) {
       console.error("Failed to delete old Cloudinary image:", cleanupError);
     }
@@ -1240,7 +1308,9 @@ var updateUserOnDB = async (userId, payload) => {
 };
 var UserServices = {
   getMyUserInfoFromDB,
-  updateUserOnDB
+  updateMyUserInfoOnDB,
+  changeMyPasswordFromDB,
+  updateProfilePictureOnDB
 };
 
 // src/modules/user/user.controller.ts
@@ -1259,15 +1329,14 @@ var getMyUserInfo = catchAsync_default(
     });
   }
 );
-var updateUser = catchAsync_default(
+var updateMyUserInfo = catchAsync_default(
   async (req, res, next) => {
     const id = req.user?.id;
-    const img = req.file;
-    const payload = {
-      img,
-      ...req.body
-    };
-    const result = await UserServices.updateUserOnDB(id, payload);
+    const payload = req.body;
+    const result = await UserServices.updateMyUserInfoOnDB(
+      id,
+      payload
+    );
     sendResponse(res, {
       success: true,
       message: "User Info Updated Successfully!",
@@ -1276,9 +1345,56 @@ var updateUser = catchAsync_default(
     });
   }
 );
+var changeMyPassword = catchAsync_default(
+  async (req, res, next) => {
+    const id = req.user?.id;
+    const payload = req.body;
+    const result = await UserServices.changeMyPasswordFromDB(
+      id,
+      payload
+    );
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: "none",
+      // Match original cookie settings
+      path: "/"
+    });
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: "none",
+      path: "/"
+    });
+    sendResponse(res, {
+      success: true,
+      message: "User password has been changed successfully!",
+      statusCode: httpStatus4.OK,
+      data: null
+    });
+  }
+);
+var updateProfilePicture = catchAsync_default(
+  async (req, res, next) => {
+    const id = req.user?.id;
+    const payload = req.file;
+    const result = await UserServices.updateProfilePictureOnDB(
+      id,
+      payload
+    );
+    sendResponse(res, {
+      success: true,
+      message: "User Profile Picture Updated Successfully!",
+      statusCode: httpStatus4.OK,
+      data: result
+    });
+  }
+);
 var UserControllers = {
   getMyUserInfo,
-  updateUser
+  updateMyUserInfo,
+  changeMyPassword,
+  updateProfilePicture
 };
 
 // src/middlewares/auth.ts
@@ -1304,8 +1420,13 @@ var auth = (...roles) => {
       where: {
         id
       },
-      omit: {
-        password: true
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isDeleted: true,
+        status: true
       }
     });
     if (!user) {
@@ -1341,7 +1462,7 @@ var auth = (...roles) => {
 
 // src/modules/user/user.validation.ts
 import z3 from "zod";
-var UserUpdateValidationSchema = z3.object({
+var updateMyUserInfoValidationSchema = z3.object({
   name: z3.string().min(2, "Name can't be less than 2 characters").max(50, "Name can't be more than 50 characters").optional(),
   dateOfBirth: z3.coerce.date({ message: "Invalid date of birth format" }).refine((date) => date <= /* @__PURE__ */ new Date(), {
     message: "Date of birth cannot be in the future"
@@ -1353,23 +1474,50 @@ var UserUpdateValidationSchema = z3.object({
     },
     { message: "You must be at least 13 years old" }
   ).optional(),
-  phone: z3.string().regex(/^(?:\+8801|01)[3-9]\d{8}$/, "Invalid Bangladeshi phone number").optional(),
+  phone: z3.string().regex(/^(?:\+8801|01)[3-9]\d{8}$/, "Invalid Bangladeshi phone number").optional()
+});
+var updateMyUserPasswordValidationSchema = z3.object({
+  oldPassword: z3.string().min(1, "Password is required").max(72, "Invalid credentials"),
+  newPassword: z3.string().min(6, "Password Can't be less then 6 Character!").max(50, "Password Can't be more then 50 Characters!").regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+    "Password must contain uppercase, lowercase, number, and special character!"
+  ),
+  confirmPassword: z3.string().min(6, "Password Can't be less then 6 Character!").max(50, "Password Can't be more then 50 Characters!").regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+    "Password must contain uppercase, lowercase, number, and special character!"
+  )
+});
+var updateProfilePictureValidationSchema = z3.object({
   image: z3.string().url("Invalid image URL").optional()
 });
 
 // src/modules/user/user.routes.ts
 var router2 = Router2();
 router2.get(
-  "/",
+  "/me",
   auth(UserRoles.CUSTOMER, UserRoles.STUFF, UserRoles.ADMIN),
   UserControllers.getMyUserInfo
 );
 router2.patch(
-  "/",
+  "/me",
+  auth(UserRoles.CUSTOMER, UserRoles.STUFF, UserRoles.ADMIN),
+  uploadTextOnly(),
+  validateSchema(updateMyUserInfoValidationSchema),
+  UserControllers.updateMyUserInfo
+);
+router2.patch(
+  "/me/update-profile-picture",
   auth(UserRoles.CUSTOMER, UserRoles.STUFF, UserRoles.ADMIN),
   uploadSingleImage("image"),
-  validateSchema(UserUpdateValidationSchema),
-  UserControllers.updateUser
+  validateSchema(updateProfilePictureValidationSchema),
+  UserControllers.updateProfilePicture
+);
+router2.patch(
+  "/me/change-password",
+  auth(UserRoles.ADMIN, UserRoles.CUSTOMER, UserRoles.STUFF),
+  uploadTextOnly(),
+  validateSchema(updateMyUserPasswordValidationSchema),
+  UserControllers.changeMyPassword
 );
 var userRoutes = router2;
 

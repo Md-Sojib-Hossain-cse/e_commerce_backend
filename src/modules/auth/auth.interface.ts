@@ -13,3 +13,7 @@ export type TLogin = {
 export type TGoogleLogin = {
   idToken: string;
 };
+
+export type TForgetPassword = {
+  email: string;
+};
