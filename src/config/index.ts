@@ -16,4 +16,7 @@ export const config = {
   google_client_id: process.env.GOOGLE_CLIENT_ID!,
   google_client_secret: process.env.GOOGLE_CLIENT_SECRET!,
   google_redirect_uri: process.env.GOOGLE_REDIRECT_URI!,
+  cloudinary_client_name: process.env.CLOUDINARY_CLIENT_NAME!,
+  cloudinary_api_key: process.env.CLOUDINARY_API_KEY!,
+  cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET!,
 };

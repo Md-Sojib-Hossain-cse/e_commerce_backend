@@ -99,6 +99,16 @@ const loginUserFromDB = async (payload: TLogin) => {
     );
   }
 
+  //update latest logged in time
+  await prisma.users.update({
+    where: {
+      email,
+    },
+    data: {
+      lastLoggedInAt: new Date(),
+    },
+  });
+
   //making jwt payload & generate token for authenticated user
   const jwtPayload = {
     id: isUserExists.id,
@@ -163,7 +173,10 @@ const googleAuthService = async (payload: TGoogleLogin) => {
     if (user) {
       user = await prisma.users.update({
         where: { id: user.id },
-        data: { googleId, emailVerifiedAt: user.emailVerifiedAt ?? new Date() },
+        data: {
+          googleId,
+          emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+        },
       });
     } else {
       // 5. Create a new customer
@@ -199,6 +212,16 @@ const googleAuthService = async (payload: TGoogleLogin) => {
       "Your account has been suspended. Please reach out to our support team for further information.",
     );
   }
+
+  //trying to take latest logged in time
+  await prisma.users.update({
+    where: {
+      email,
+    },
+    data: {
+      lastLoggedInAt: new Date(),
+    },
+  });
 
   // 6. Generate YOUR OWN JWT tokens here.
   const jwtPayload = {

@@ -7,6 +7,7 @@ model Users {
   dateOfBirth     DateTime?
   phone           String?    @unique @db.VarChar(15)
   image           String?    @db.Text()
+  imagePublicId   String?    @db.Text()
   role            UserRoles  @default(CUSTOMER)
   status          UserStatus @default(ACTIVE)
   emailVerifiedAt DateTime?

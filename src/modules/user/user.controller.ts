@@ -22,6 +22,27 @@ const getMyUserInfo = catchAsync(
   },
 );
 
+const updateUser = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user?.id;
+    const img = req.file;
+    const payload = {
+      img,
+      ...req.body,
+    };
+
+    const result = await UserServices.updateUserOnDB(id as string, payload);
+
+    sendResponse(res, {
+      success: true,
+      message: "User Info Updated Successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const UserControllers = {
   getMyUserInfo,
+  updateUser,
 };
