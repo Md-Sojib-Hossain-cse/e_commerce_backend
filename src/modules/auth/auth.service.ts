@@ -85,17 +85,10 @@ const loginUserFromDB = async (payload: TLogin) => {
     );
   }
 
-  if (isUserExists.status === "INACTIVE") {
+  if (isUserExists.status !== "ACTIVE") {
     throw new AppError(
       httpStatus.FORBIDDEN,
-      "Your account is currently inactive. Please activate your account or contact support for assistance.",
-    );
-  }
-
-  if (isUserExists.status === "SUSPENDED") {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      "Your account has been suspended. Please reach out to our support team for further information.",
+      "Your account is currently inactive or suspended. Please activate your account or contact support.",
     );
   }
 
@@ -199,17 +192,10 @@ const googleAuthService = async (payload: TGoogleLogin) => {
     );
   }
 
-  if (user && user.status === "INACTIVE") {
+  if (user.status !== "ACTIVE") {
     throw new AppError(
       httpStatus.FORBIDDEN,
-      "Your account is currently inactive. Please activate your account or contact support for assistance.",
-    );
-  }
-
-  if (user && user.status === "SUSPENDED") {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      "Your account has been suspended. Please reach out to our support team for further information.",
+      "Your account is currently inactive or suspended. Please activate your account or contact support.",
     );
   }
 

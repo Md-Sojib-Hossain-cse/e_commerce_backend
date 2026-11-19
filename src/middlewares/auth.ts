@@ -56,8 +56,13 @@ export const auth = (...roles: UserRoles[]) => {
       where: {
         id: id,
       },
-      omit: {
-        password: true,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isDeleted: true,
+        status: true,
       },
     });
 

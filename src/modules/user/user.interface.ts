@@ -2,13 +2,21 @@ export type TUpdateUserInfoPayload = {
   name?: string;
   dateOfBirth?: Date;
   phone?: string;
-  img?: Express.Multer.File;
 };
 
 export type TUpdateUserInfo = {
   name?: string;
   dateOfBirth?: Date;
   phone?: string;
-  imagePublicId?: string;
+};
+
+export type TChangeUserPassword = {
+  oldPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+export type TUpdateProfilePayload = {
   image?: string;
+  imagePublicId?: string;
 };

@@ -1,6 +1,6 @@
 import z from "zod";
 
-export const UserUpdateValidationSchema = z.object({
+export const updateMyUserInfoValidationSchema = z.object({
   name: z
     .string()
     .min(2, "Name can't be less than 2 characters")
@@ -26,6 +26,31 @@ export const UserUpdateValidationSchema = z.object({
     .string()
     .regex(/^(?:\+8801|01)[3-9]\d{8}$/, "Invalid Bangladeshi phone number")
     .optional(),
+});
 
+export const updateMyUserPasswordValidationSchema = z.object({
+  oldPassword: z
+    .string()
+    .min(1, "Password is required")
+    .max(72, "Invalid credentials"),
+  newPassword: z
+    .string()
+    .min(6, "Password Can't be less then 6 Character!")
+    .max(50, "Password Can't be more then 50 Characters!")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+      "Password must contain uppercase, lowercase, number, and special character!",
+    ),
+  confirmPassword: z
+    .string()
+    .min(6, "Password Can't be less then 6 Character!")
+    .max(50, "Password Can't be more then 50 Characters!")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+      "Password must contain uppercase, lowercase, number, and special character!",
+    ),
+});
+
+export const updateProfilePictureValidationSchema = z.object({
   image: z.string().url("Invalid image URL").optional(),
 });
