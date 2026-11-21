@@ -44,4 +44,10 @@ router.patch(
   UserControllers.changeMyPassword,
 );
 
+router.delete(
+  "/me",
+  auth(UserRoles.ADMIN, UserRoles.CUSTOMER, UserRoles.STUFF),
+  UserControllers.deleteMyAccount,
+);
+
 export const userRoutes = router;

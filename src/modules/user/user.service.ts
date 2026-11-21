@@ -307,9 +307,77 @@ const updateProfilePictureOnDB = async (
   return result;
 };
 
+const deleteMyAccountFromDB = async (userId: string) => {
+  if (!userId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have permission to delete this account!",
+    );
+  }
+
+  const user = await prisma.users.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      id: true,
+      isDeleted: true,
+    },
+  });
+
+  if (!user || user.isDeleted) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "User you're trying to delete possibly already deleted!",
+    );
+  }
+
+  const activeOrders = await prisma.orders.findFirst({
+    where: {
+      userId,
+      status: {
+        in: [
+          "PENDING",
+          "CONFIRMED",
+          "PROCESSING",
+          "OUT_FOR_DELIVERY",
+          "READY_TO_SHIP",
+          "SHIPPED",
+        ],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (activeOrders) {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "You cannot delete your account while you have active orders!",
+    );
+  }
+
+  const result = await prisma.users.update({
+    where: {
+      id: userId,
+      isDeleted: false,
+    },
+    data: {
+      isDeleted: true,
+    },
+    select: {
+      isDeleted: true,
+    },
+  });
+
+  return result;
+};
+
 export const UserServices = {
   getMyUserInfoFromDB,
   updateMyUserInfoOnDB,
   changeMyPasswordFromDB,
   updateProfilePictureOnDB,
+  deleteMyAccountFromDB,
 };

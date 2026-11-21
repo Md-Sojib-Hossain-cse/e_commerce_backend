@@ -94,9 +94,40 @@ const updateProfilePicture = catchAsync(
   },
 );
 
+const deleteMyAccount = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user?.id;
+
+    const result = await UserServices.deleteMyAccountFromDB(id as string);
+
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: "none",
+      path: "/",
+      maxAge: 0,
+    });
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: "none",
+      path: "/",
+      maxAge: 0,
+    });
+
+    sendResponse(res, {
+      success: true,
+      message: "User Profile Picture Request for Deletion Successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const UserControllers = {
   getMyUserInfo,
   updateMyUserInfo,
   changeMyPassword,
   updateProfilePicture,
+  deleteMyAccount,
 };

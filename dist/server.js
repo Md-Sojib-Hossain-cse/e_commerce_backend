@@ -731,9 +731,6 @@ import httpStatus from "http-status";
 import { OAuth2Client } from "google-auth-library";
 var googleClient = new OAuth2Client(config.google_client_id);
 
-// src/modules/auth/auth.service.ts
-import "zod/v4/locales";
-
 // src/lib/nodeMailer.ts
 import nodemailer from "nodemailer";
 var transporter = nodemailer.createTransport({
@@ -943,25 +940,33 @@ var loginUserFromDB = async (payload) => {
       lastLoggedInAt: /* @__PURE__ */ new Date()
     }
   });
-  const jwtPayload = {
+  const jwtAccessTokenPayload = {
     id: isUserExists.id,
     name: isUserExists.name,
     email: isUserExists.email,
-    role: isUserExists.role
+    role: isUserExists.role,
+    tokenType: "accessToken"
+  };
+  const jwtRefreshTokenPayload = {
+    id: isUserExists.id,
+    name: isUserExists.name,
+    email: isUserExists.email,
+    role: isUserExists.role,
+    tokenType: "refreshToken"
   };
   const accessToken = jwtUtils.generateToken(
-    jwtPayload,
+    jwtAccessTokenPayload,
     config.jwt_access_secret,
     isRemember ? config.jwt_access_expires_in : "1d"
   );
-  const refreshToken = jwtUtils.generateToken(
-    jwtPayload,
+  const refreshToken2 = jwtUtils.generateToken(
+    jwtRefreshTokenPayload,
     config.jwt_refresh_secret,
     isRemember ? config.jwt_refresh_expires_in : "1d"
   );
   return {
     accessToken,
-    refreshToken,
+    refreshToken: refreshToken2,
     isRemember
   };
 };
@@ -1034,13 +1039,13 @@ var googleAuthService = async (payload) => {
     config.jwt_access_secret,
     config.jwt_access_expires_in
   );
-  const refreshToken = jwtUtils.generateToken(
+  const refreshToken2 = jwtUtils.generateToken(
     jwtPayload,
     config.jwt_refresh_secret,
     config.jwt_refresh_expires_in
   );
   const { password, ...userWithoutPassword } = user;
-  return { userWithoutPassword, accessToken, refreshToken };
+  return { userWithoutPassword, accessToken, refreshToken: refreshToken2 };
 };
 var forgetPasswordService = async (payload) => {
   const { email: email2 } = payload;
@@ -1103,11 +1108,69 @@ var forgetPasswordService = async (payload) => {
   }
   return genericResponse;
 };
+var refreshTokenService = async (token) => {
+  const decodedToken = jwtUtils.verifyToken(
+    token,
+    config.jwt_refresh_secret
+  );
+  if (!decodedToken.success || !decodedToken.data) {
+    throw new appError_default(httpStatus.UNAUTHORIZED, "Invalid Refresh Token!");
+  }
+  const payload = decodedToken.data;
+  if (typeof payload.id !== "string" || payload.tokenType !== "refreshToken") {
+    throw new appError_default(httpStatus.UNAUTHORIZED, "Invalid Refresh Token!");
+  }
+  const { id } = payload;
+  const isUserExists = await prisma.users.findUnique({
+    where: {
+      id
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isDeleted: true,
+      status: true
+    }
+  });
+  if (!isUserExists) {
+    throw new appError_default(httpStatus.UNAUTHORIZED, "Invalid Refresh Token");
+  }
+  if (isUserExists.isDeleted) {
+    throw new appError_default(
+      httpStatus.NOT_FOUND,
+      "This account has been deleted. Please contact support if you believe this is a mistake."
+    );
+  }
+  if (isUserExists.status !== "ACTIVE") {
+    throw new appError_default(
+      httpStatus.FORBIDDEN,
+      "Your account is currently inactive or suspended. Please activate your account or contact support."
+    );
+  }
+  const jwtAccessTokenPayload = {
+    id: isUserExists.id,
+    name: isUserExists.name,
+    email: isUserExists.email,
+    role: isUserExists.role,
+    tokenType: "accessToken"
+  };
+  const accessToken = jwtUtils.generateToken(
+    jwtAccessTokenPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in
+  );
+  return {
+    accessToken
+  };
+};
 var AuthServices = {
   registerUserOnDB,
   loginUserFromDB,
   googleAuthService,
-  forgetPasswordService
+  forgetPasswordService,
+  refreshTokenService
 };
 
 // src/modules/auth/auth.controller.ts
@@ -1186,7 +1249,7 @@ var googleAuth = catchAsync_default(
       statusCode: httpStatus2.OK,
       message: "Google Authentication Successful!",
       success: true,
-      data: result
+      data: null
     });
   }
 );
@@ -1202,11 +1265,39 @@ var forgetPassword = catchAsync_default(
     });
   }
 );
+var refreshToken = catchAsync_default(
+  async (req, res, next) => {
+    const refreshToken2 = req.cookies?.refreshToken;
+    if (!refreshToken2) {
+      throw new appError_default(
+        httpStatus2.UNAUTHORIZED,
+        "Refresh token is missing. Please log in again."
+      );
+    }
+    const result = await AuthServices.refreshTokenService(
+      refreshToken2
+    );
+    res.cookie("accessToken", result.accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "none",
+      maxAge: 1e3 * 60 * 60 * 24 * 1
+      // 1 day
+    });
+    sendResponse(res, {
+      statusCode: httpStatus2.OK,
+      message: "Token Refreshed Successfully!",
+      success: true,
+      data: null
+    });
+  }
+);
 var AuthControllers = {
   registerUser,
   loginUser,
   googleAuth,
-  forgetPassword
+  forgetPassword,
+  refreshToken
 };
 
 // src/middlewares/validateSchema.ts
@@ -1302,6 +1393,7 @@ router.post(
   validateSchema(UserForgetPasswordValidationSchema),
   AuthControllers.forgetPassword
 );
+router.post("/refresh-token", AuthControllers.refreshToken);
 var authRoutes = router;
 
 // src/modules/user/user.routes.ts
@@ -1346,8 +1438,8 @@ var uploadCloudinary_default = uploadToCloudinary;
 // src/modules/user/user.service.ts
 import bcrypt2 from "bcryptjs";
 var getMyUserInfoFromDB = async (payload) => {
-  const { id: id2, name, email: email2, role } = payload;
-  if (!id2 || !name || !email2 || !role) {
+  const { id, name, email: email2, role } = payload;
+  if (!id || !name || !email2 || !role) {
     throw new appError_default(
       httpStatus4.UNAUTHORIZED,
       "Unauthorized access! Please log in again."
@@ -1355,7 +1447,7 @@ var getMyUserInfoFromDB = async (payload) => {
   }
   const result = await prisma.users.findUnique({
     where: {
-      id: id2
+      id
     },
     select: {
       id: true,
@@ -1600,10 +1692,10 @@ var getMyUserInfo = catchAsync_default(
 );
 var updateMyUserInfo = catchAsync_default(
   async (req, res, next) => {
-    const id2 = req.user?.id;
+    const id = req.user?.id;
     const payload = req.body;
     const result = await UserServices.updateMyUserInfoOnDB(
-      id2,
+      id,
       payload
     );
     sendResponse(res, {
@@ -1616,10 +1708,10 @@ var updateMyUserInfo = catchAsync_default(
 );
 var changeMyPassword = catchAsync_default(
   async (req, res, next) => {
-    const id2 = req.user?.id;
+    const id = req.user?.id;
     const payload = req.body;
     const result = await UserServices.changeMyPasswordFromDB(
-      id2,
+      id,
       payload
     );
     res.clearCookie("accessToken", {
@@ -1645,10 +1737,10 @@ var changeMyPassword = catchAsync_default(
 );
 var updateProfilePicture = catchAsync_default(
   async (req, res, next) => {
-    const id2 = req.user?.id;
+    const id = req.user?.id;
     const payload = req.file;
     const result = await UserServices.updateProfilePictureOnDB(
-      id2,
+      id,
       payload
     );
     sendResponse(res, {
@@ -1681,13 +1773,13 @@ var auth = (...roles) => {
     if (!verifyToken2.success) {
       throw new appError_default(httpStatus6.UNAUTHORIZED, "Unauthorized access!");
     }
-    const { email: email2, name, id: id2, role } = verifyToken2.data;
+    const { email: email2, name, id, role } = verifyToken2.data;
     if (roles.length && !roles.includes(role)) {
       throw new appError_default(httpStatus6.FORBIDDEN, "Forbidden!");
     }
     const user = await prisma.users.findUnique({
       where: {
-        id: id2
+        id
       },
       select: {
         id: true,
