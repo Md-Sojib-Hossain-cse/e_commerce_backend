@@ -38,7 +38,10 @@ export const auth = (...roles: UserRoles[]) => {
     const verifyToken = jwtUtils.verifyToken(token, config.jwt_access_secret);
 
     if (!verifyToken.success) {
-      throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized access!");
+      throw new AppError(
+        httpStatus.UNAUTHORIZED,
+        "Unauthorized access , You do not have permission to access this route!",
+      );
     }
 
     const { email, name, id, role } = verifyToken.data as {
@@ -49,7 +52,10 @@ export const auth = (...roles: UserRoles[]) => {
     };
 
     if (roles.length && !roles.includes(role)) {
-      throw new AppError(httpStatus.FORBIDDEN, "Forbidden!");
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "Forbidden , You do not have permission to access this route!",
+      );
     }
 
     const user = await prisma.users.findUnique({

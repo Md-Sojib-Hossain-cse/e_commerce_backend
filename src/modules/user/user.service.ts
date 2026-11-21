@@ -7,12 +7,15 @@ import type {
   TUpdateProfilePayload,
   TUpdateUserInfo,
   TUpdateUserInfoPayload,
+  TUsersQuery,
 } from "./user.interface";
 import uploadToCloudinary from "../../utils/uploadCloudinary";
 import type { UploadApiResponse } from "cloudinary";
 import cloudinary from "../../config/cloudinary";
 import bcrypt from "bcryptjs";
 import { config } from "../../config";
+import type { UsersWhereInput } from "../../../generated/prisma/models";
+import { allowedSortFields } from "./user.const";
 
 const getMyUserInfoFromDB = async (payload: TDecodedUser) => {
   const { id, name, email, role } = payload;
@@ -378,10 +381,159 @@ const deleteMyAccountFromDB = async (userId: string) => {
   };
 };
 
+const getAllUserFromDB = async (userId: string, query: TUsersQuery) => {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+  const skip = (page - 1) * limit;
+
+  type SortField = (typeof allowedSortFields)[number];
+
+  const sortBy: SortField =
+    typeof query.sortBy === "string" &&
+    allowedSortFields.includes(query.sortBy as SortField)
+      ? (query.sortBy as SortField)
+      : "createdAt";
+  const sortOrder =
+    query.sortOrder && query.sortOrder === "asc" ? "asc" : "desc";
+
+  const andConditions: UsersWhereInput[] = [];
+  const orConditions: UsersWhereInput[] = [];
+
+  const usersSearchableFields = ["name", "email", "phone"];
+
+  if (query.isDeleted) {
+    andConditions.push({
+      isDeleted: Boolean(query.isDeleted) === true ? true : false,
+    });
+  }
+
+  if (query.role) {
+    andConditions.push({
+      role: query.role,
+    });
+  }
+
+  if (query.status) {
+    andConditions.push({
+      status: query.status,
+    });
+  }
+
+  if (query.lastLoggedInAt) {
+    andConditions.push({
+      lastLoggedInAt: {
+        gte: new Date(query.lastLoggedInAt),
+      },
+    });
+  }
+
+  if (query.dateOfBirth) {
+    andConditions.push({
+      dateOfBirth: {
+        gte: new Date(query.dateOfBirth),
+      },
+    });
+  }
+
+  if (query.createdAt) {
+    andConditions.push({
+      createdAt: {
+        gte: new Date(query.createdAt),
+      },
+    });
+  }
+
+  if (query.searchTerm) {
+    usersSearchableFields.forEach((field: string) => {
+      orConditions.push({
+        [field]: {
+          contains: (query.searchTerm as string).trim(),
+          mode: "insensitive",
+        },
+      });
+    });
+
+    andConditions.push({
+      OR: orConditions,
+    });
+  }
+
+  if (!userId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have permission , to see users information!",
+    );
+  }
+
+  const isUserExists = await prisma.users.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      isDeleted: true,
+      role: true,
+    },
+  });
+
+  if (
+    !isUserExists ||
+    isUserExists.isDeleted ||
+    isUserExists.role !== "ADMIN"
+  ) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have permission , to see users information!",
+    );
+  }
+
+  const [result, total] = await Promise.all([
+    prisma.users.findMany({
+      where: {
+        AND: andConditions,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        dateOfBirth: true,
+        role: true,
+        status: true,
+        emailVerifiedAt: true,
+        lastLoggedInAt: true,
+        phoneVerifiedAt: true,
+        isDeleted: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.users.count({
+      where: {
+        AND: andConditions,
+      },
+    }),
+  ]);
+
+  return {
+    result,
+    meta: {
+      total,
+      page,
+      limit,
+    },
+  };
+};
+
 export const UserServices = {
   getMyUserInfoFromDB,
   updateMyUserInfoOnDB,
   changeMyPasswordFromDB,
   updateProfilePictureOnDB,
   deleteMyAccountFromDB,
+  getAllUserFromDB,
 };

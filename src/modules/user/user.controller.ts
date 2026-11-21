@@ -102,10 +102,27 @@ const deleteMyAccount = catchAsync(
   },
 );
 
+const getAllUser = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user?.id;
+    const queries = req.query;
+
+    const result = await UserServices.getAllUserFromDB(id as string, queries);
+
+    sendResponse(res, {
+      success: true,
+      message: "Users data retrieve successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const UserControllers = {
   getMyUserInfo,
   updateMyUserInfo,
   changeMyPassword,
   updateProfilePicture,
   deleteMyAccount,
+  getAllUser,
 };

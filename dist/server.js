@@ -1165,12 +1165,39 @@ var refreshTokenService = async (token) => {
     accessToken
   };
 };
+var logoutUserService = async (userId) => {
+  if (!userId) {
+    throw new appError_default(
+      httpStatus.UNAUTHORIZED,
+      "You can't perform this action ,Please try again later!"
+    );
+  }
+  const user = await prisma.users.findUnique({
+    where: {
+      id: userId,
+      isDeleted: false
+    },
+    select: {
+      id: true
+    }
+  });
+  if (!user) {
+    throw new appError_default(
+      httpStatus.UNAUTHORIZED,
+      "You can't perform this action ,Please try again later!"
+    );
+  }
+  return {
+    success: true
+  };
+};
 var AuthServices = {
   registerUserOnDB,
   loginUserFromDB,
   googleAuthService,
   forgetPasswordService,
-  refreshTokenService
+  refreshTokenService,
+  logoutUserService
 };
 
 // src/modules/auth/auth.controller.ts
@@ -1187,6 +1214,15 @@ var catchAsync = (fn) => {
   };
 };
 var catchAsync_default = catchAsync;
+
+// src/modules/auth/auth.consts.ts
+var clearCookieOptions = {
+  httpOnly: true,
+  secure: config.node_env === "production",
+  sameSite: "none",
+  path: "/",
+  maxAge: 0
+};
 
 // src/modules/auth/auth.controller.ts
 var registerUser = catchAsync_default(
@@ -1292,12 +1328,29 @@ var refreshToken = catchAsync_default(
     });
   }
 );
+var logoutUser = catchAsync_default(
+  async (req, res, next) => {
+    const userId = req.user?.id;
+    const result = await AuthServices.logoutUserService(userId);
+    if (result.success) {
+      res.clearCookie("accessToken", clearCookieOptions);
+      res.clearCookie("refreshToken", clearCookieOptions);
+    }
+    sendResponse(res, {
+      statusCode: httpStatus2.OK,
+      message: "User logged out successfully!",
+      success: true,
+      data: null
+    });
+  }
+);
 var AuthControllers = {
   registerUser,
   loginUser,
   googleAuth,
   forgetPassword,
-  refreshToken
+  refreshToken,
+  logoutUser
 };
 
 // src/middlewares/validateSchema.ts
@@ -1371,6 +1424,69 @@ var changePasswordLimiter = rateLimit({
   legacyHeaders: false
 });
 
+// src/middlewares/auth.ts
+import httpStatus4 from "http-status";
+var auth = (...roles) => {
+  return catchAsync_default(async (req, res, next) => {
+    const token = req.cookies.accessToken ? req.cookies.accessToken : req.headers.authorization?.startsWith("Bearer") ? req.headers.authorization.split(" ")[1] : req.headers.authorization;
+    if (!token) {
+      throw new appError_default(
+        httpStatus4.UNAUTHORIZED,
+        "You are not logged in , please logged in to access your resource!"
+      );
+    }
+    const verifyToken2 = jwtUtils.verifyToken(token, config.jwt_access_secret);
+    if (!verifyToken2.success) {
+      throw new appError_default(httpStatus4.UNAUTHORIZED, "Unauthorized access!");
+    }
+    const { email: email2, name, id, role } = verifyToken2.data;
+    if (roles.length && !roles.includes(role)) {
+      throw new appError_default(httpStatus4.FORBIDDEN, "Forbidden!");
+    }
+    const user = await prisma.users.findUnique({
+      where: {
+        id
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isDeleted: true,
+        status: true
+      }
+    });
+    if (!user) {
+      throw new appError_default(httpStatus4.NOT_FOUND, "User not Exists!");
+    }
+    if (user && user.isDeleted) {
+      throw new appError_default(
+        httpStatus4.NOT_FOUND,
+        "This account has been deleted. Please contact support if you believe this is a mistake."
+      );
+    }
+    if (user && user.status === "INACTIVE") {
+      throw new appError_default(
+        httpStatus4.FORBIDDEN,
+        "Your account is currently inactive. Please activate your account or contact support for assistance."
+      );
+    }
+    if (user && user.status === "SUSPENDED") {
+      throw new appError_default(
+        httpStatus4.FORBIDDEN,
+        "Your account has been suspended. Please reach out to our support team for further information."
+      );
+    }
+    req.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
+    next();
+  });
+};
+
 // src/modules/auth/auth.routes.ts
 var router = Router();
 router.post(
@@ -1388,6 +1504,11 @@ router.post(
 );
 router.post("/google", AuthControllers.googleAuth);
 router.post(
+  "/logout",
+  auth(UserRoles.CUSTOMER, UserRoles.ADMIN, UserRoles.STUFF),
+  AuthControllers.logoutUser
+);
+router.post(
   "/forget-password",
   uploadTextOnly(),
   validateSchema(UserForgetPasswordValidationSchema),
@@ -1400,7 +1521,7 @@ var authRoutes = router;
 import { Router as Router2 } from "express";
 
 // src/modules/user/user.service.ts
-import httpStatus4 from "http-status";
+import httpStatus5 from "http-status";
 
 // src/config/cloudinary.ts
 import { v2 as cloudinary } from "cloudinary";
@@ -1441,7 +1562,7 @@ var getMyUserInfoFromDB = async (payload) => {
   const { id, name, email: email2, role } = payload;
   if (!id || !name || !email2 || !role) {
     throw new appError_default(
-      httpStatus4.UNAUTHORIZED,
+      httpStatus5.UNAUTHORIZED,
       "Unauthorized access! Please log in again."
     );
   }
@@ -1466,17 +1587,17 @@ var getMyUserInfoFromDB = async (payload) => {
     }
   });
   if (!result) {
-    throw new appError_default(httpStatus4.NOT_FOUND, "User Profile Not Found!");
+    throw new appError_default(httpStatus5.NOT_FOUND, "User Profile Not Found!");
   }
   if (result.isDeleted) {
     throw new appError_default(
-      httpStatus4.NOT_FOUND,
+      httpStatus5.NOT_FOUND,
       "This account has been deleted. Please contact support if you believe this is a mistake."
     );
   }
   if (result.status !== "ACTIVE") {
     throw new appError_default(
-      httpStatus4.FORBIDDEN,
+      httpStatus5.FORBIDDEN,
       "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
@@ -1485,7 +1606,7 @@ var getMyUserInfoFromDB = async (payload) => {
 var updateMyUserInfoOnDB = async (userId, payload) => {
   if (!userId) {
     throw new appError_default(
-      httpStatus4.UNAUTHORIZED,
+      httpStatus5.UNAUTHORIZED,
       "Unauthorized access! Please log in again."
     );
   }
@@ -1499,11 +1620,11 @@ var updateMyUserInfoOnDB = async (userId, payload) => {
     }
   });
   if (!isUserExists || isUserExists.isDeleted) {
-    throw new appError_default(httpStatus4.NOT_FOUND, "User profile not found!");
+    throw new appError_default(httpStatus5.NOT_FOUND, "User profile not found!");
   }
   if (isUserExists.status !== "ACTIVE") {
     throw new appError_default(
-      httpStatus4.FORBIDDEN,
+      httpStatus5.FORBIDDEN,
       "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
@@ -1511,14 +1632,14 @@ var updateMyUserInfoOnDB = async (userId, payload) => {
   if (payload.name !== void 0) {
     const trimmedName = payload.name.trim();
     if (!trimmedName) {
-      throw new appError_default(httpStatus4.BAD_REQUEST, "Name cannot be empty.");
+      throw new appError_default(httpStatus5.BAD_REQUEST, "Name cannot be empty.");
     }
     safeUpdateData.name = trimmedName;
   }
   if (payload.phone !== void 0) {
     const trimmedPhone = payload.phone.trim();
     if (!trimmedPhone) {
-      throw new appError_default(httpStatus4.BAD_REQUEST, "Phone cannot be empty.");
+      throw new appError_default(httpStatus5.BAD_REQUEST, "Phone cannot be empty.");
     }
     safeUpdateData.phone = trimmedPhone;
   }
@@ -1527,7 +1648,7 @@ var updateMyUserInfoOnDB = async (userId, payload) => {
   }
   if (Object.keys(safeUpdateData).length === 0) {
     throw new appError_default(
-      httpStatus4.BAD_REQUEST,
+      httpStatus5.BAD_REQUEST,
       "Please provide at least one valid field to update."
     );
   }
@@ -1550,13 +1671,13 @@ var changeMyPasswordFromDB = async (userId, payload) => {
   const { newPassword, oldPassword, confirmPassword } = payload;
   if (newPassword !== confirmPassword) {
     throw new appError_default(
-      httpStatus4.BAD_REQUEST,
+      httpStatus5.BAD_REQUEST,
       "New password and confirm password do not match."
     );
   }
   if (oldPassword === confirmPassword) {
     throw new appError_default(
-      httpStatus4.BAD_REQUEST,
+      httpStatus5.BAD_REQUEST,
       "New password cannot be the same as your old password."
     );
   }
@@ -1571,23 +1692,23 @@ var changeMyPasswordFromDB = async (userId, payload) => {
     }
   });
   if (!user || user.isDeleted) {
-    throw new appError_default(httpStatus4.NOT_FOUND, "User profile not found!");
+    throw new appError_default(httpStatus5.NOT_FOUND, "User profile not found!");
   }
   if (!user.password) {
     throw new appError_default(
-      httpStatus4.FORBIDDEN,
+      httpStatus5.FORBIDDEN,
       "You can't change a local password of this account!"
     );
   }
   if (user.status !== "ACTIVE") {
     throw new appError_default(
-      httpStatus4.FORBIDDEN,
+      httpStatus5.FORBIDDEN,
       "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
   const isPasswordMatched = await bcrypt2.compare(oldPassword, user.password);
   if (!isPasswordMatched) {
-    throw new appError_default(httpStatus4.UNAUTHORIZED, "Old password is incorrect");
+    throw new appError_default(httpStatus5.UNAUTHORIZED, "Old password is incorrect");
   }
   const hashedNewPassword = await bcrypt2.hash(
     confirmPassword,
@@ -1604,12 +1725,14 @@ var changeMyPasswordFromDB = async (userId, payload) => {
       updatedAt: true
     }
   });
-  return result;
+  return {
+    success: result ? true : false
+  };
 };
 var updateProfilePictureOnDB = async (userId, payload) => {
   if (!payload) {
     throw new appError_default(
-      httpStatus4.BAD_REQUEST,
+      httpStatus5.BAD_REQUEST,
       "Please provide an image you're trying to update!"
     );
   }
@@ -1624,11 +1747,11 @@ var updateProfilePictureOnDB = async (userId, payload) => {
     }
   });
   if (!user || user.isDeleted) {
-    throw new appError_default(httpStatus4.NOT_FOUND, "User profile not found!");
+    throw new appError_default(httpStatus5.NOT_FOUND, "User profile not found!");
   }
   if (user.status !== "ACTIVE") {
     throw new appError_default(
-      httpStatus4.FORBIDDEN,
+      httpStatus5.FORBIDDEN,
       "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
@@ -1670,7 +1793,7 @@ var updateProfilePictureOnDB = async (userId, payload) => {
 var deleteMyAccountFromDB = async (userId) => {
   if (!userId) {
     throw new appError_default(
-      httpStatus4.UNAUTHORIZED,
+      httpStatus5.UNAUTHORIZED,
       "You do not have permission to delete this account!"
     );
   }
@@ -1685,7 +1808,7 @@ var deleteMyAccountFromDB = async (userId) => {
   });
   if (!user || user.isDeleted) {
     throw new appError_default(
-      httpStatus4.NOT_FOUND,
+      httpStatus5.NOT_FOUND,
       "User you're trying to delete possibly already deleted!"
     );
   }
@@ -1709,7 +1832,7 @@ var deleteMyAccountFromDB = async (userId) => {
   });
   if (activeOrders) {
     throw new appError_default(
-      httpStatus4.CONFLICT,
+      httpStatus5.CONFLICT,
       "You cannot delete your account while you have active orders!"
     );
   }
@@ -1725,7 +1848,9 @@ var deleteMyAccountFromDB = async (userId) => {
       isDeleted: true
     }
   });
-  return result;
+  return {
+    success: result ? true : false
+  };
 };
 var UserServices = {
   getMyUserInfoFromDB,
@@ -1736,7 +1861,7 @@ var UserServices = {
 };
 
 // src/modules/user/user.controller.ts
-import httpStatus5 from "http-status";
+import httpStatus6 from "http-status";
 var getMyUserInfo = catchAsync_default(
   async (req, res, next) => {
     const userInfo = req.user;
@@ -1746,7 +1871,7 @@ var getMyUserInfo = catchAsync_default(
     sendResponse(res, {
       success: true,
       message: "User Info Retrieve Successfully!",
-      statusCode: httpStatus5.OK,
+      statusCode: httpStatus6.OK,
       data: result
     });
   }
@@ -1762,7 +1887,7 @@ var updateMyUserInfo = catchAsync_default(
     sendResponse(res, {
       success: true,
       message: "User Info Updated Successfully!",
-      statusCode: httpStatus5.OK,
+      statusCode: httpStatus6.OK,
       data: result
     });
   }
@@ -1775,24 +1900,13 @@ var changeMyPassword = catchAsync_default(
       id,
       payload
     );
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      secure: config.node_env === "production",
-      sameSite: "none",
-      // Match original cookie settings
-      path: "/"
-    });
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: config.node_env === "production",
-      sameSite: "none",
-      path: "/"
-    });
+    res.clearCookie("accessToken", clearCookieOptions);
+    res.clearCookie("refreshToken", clearCookieOptions);
     sendResponse(res, {
       success: true,
       message: "User password has been changed successfully!",
-      statusCode: httpStatus5.OK,
-      data: null
+      statusCode: httpStatus6.OK,
+      data: result
     });
   }
 );
@@ -1807,7 +1921,7 @@ var updateProfilePicture = catchAsync_default(
     sendResponse(res, {
       success: true,
       message: "User Profile Picture Updated Successfully!",
-      statusCode: httpStatus5.OK,
+      statusCode: httpStatus6.OK,
       data: result
     });
   }
@@ -1816,24 +1930,12 @@ var deleteMyAccount = catchAsync_default(
   async (req, res, next) => {
     const id = req.user?.id;
     const result = await UserServices.deleteMyAccountFromDB(id);
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      secure: config.node_env === "production",
-      sameSite: "none",
-      path: "/",
-      maxAge: 0
-    });
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: config.node_env === "production",
-      sameSite: "none",
-      path: "/",
-      maxAge: 0
-    });
+    res.clearCookie("accessToken", clearCookieOptions);
+    res.clearCookie("refreshToken", clearCookieOptions);
     sendResponse(res, {
       success: true,
-      message: "User Profile Picture Request for Deletion Successfully!",
-      statusCode: httpStatus5.OK,
+      message: "User Account deleted successfully!",
+      statusCode: httpStatus6.OK,
       data: result
     });
   }
@@ -1844,69 +1946,6 @@ var UserControllers = {
   changeMyPassword,
   updateProfilePicture,
   deleteMyAccount
-};
-
-// src/middlewares/auth.ts
-import httpStatus6 from "http-status";
-var auth = (...roles) => {
-  return catchAsync_default(async (req, res, next) => {
-    const token = req.cookies.accessToken ? req.cookies.accessToken : req.headers.authorization?.startsWith("Bearer") ? req.headers.authorization.split(" ")[1] : req.headers.authorization;
-    if (!token) {
-      throw new appError_default(
-        httpStatus6.UNAUTHORIZED,
-        "You are not logged in , please logged in to access your resource!"
-      );
-    }
-    const verifyToken2 = jwtUtils.verifyToken(token, config.jwt_access_secret);
-    if (!verifyToken2.success) {
-      throw new appError_default(httpStatus6.UNAUTHORIZED, "Unauthorized access!");
-    }
-    const { email: email2, name, id, role } = verifyToken2.data;
-    if (roles.length && !roles.includes(role)) {
-      throw new appError_default(httpStatus6.FORBIDDEN, "Forbidden!");
-    }
-    const user = await prisma.users.findUnique({
-      where: {
-        id
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isDeleted: true,
-        status: true
-      }
-    });
-    if (!user) {
-      throw new appError_default(httpStatus6.NOT_FOUND, "User not Exists!");
-    }
-    if (user && user.isDeleted) {
-      throw new appError_default(
-        httpStatus6.NOT_FOUND,
-        "This account has been deleted. Please contact support if you believe this is a mistake."
-      );
-    }
-    if (user && user.status === "INACTIVE") {
-      throw new appError_default(
-        httpStatus6.FORBIDDEN,
-        "Your account is currently inactive. Please activate your account or contact support for assistance."
-      );
-    }
-    if (user && user.status === "SUSPENDED") {
-      throw new appError_default(
-        httpStatus6.FORBIDDEN,
-        "Your account has been suspended. Please reach out to our support team for further information."
-      );
-    }
-    req.user = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    };
-    next();
-  });
 };
 
 // src/modules/user/user.validation.ts
