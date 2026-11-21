@@ -1,6 +1,8 @@
 import { jwtUtils } from "./../../utils/jwtUtils";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma";
+import crypto from "crypto";
+
 import type {
   TForgetPassword,
   TGoogleLogin,
@@ -12,6 +14,7 @@ import { type SignOptions } from "jsonwebtoken";
 import AppError from "../../errors/appError";
 import httpStatus from "http-status";
 import { googleClient } from "../../lib/google";
+import { id } from "zod/v4/locales";
 import { sendForgetPasswordEmail } from "../../lib/nodeMailer";
 
 //user registration using email and password
@@ -243,24 +246,89 @@ const googleAuthService = async (payload: TGoogleLogin) => {
 const forgetPasswordService = async (payload: TForgetPassword) => {
   const { email } = payload;
 
+  const genericResponse = {
+    message:
+      "If an account exists with this email, you will receive a password reset link.",
+  };
+
   const user = await prisma.users.findUnique({
-    where: {
-      email,
+    where: { email },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      password: true,
     },
   });
 
-  if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, "Invalid Credentials!");
+  // Avoid exposing whether the email is registered.
+  if (!user) return genericResponse;
+
+  // Apply this only if your authentication policy
+  // does not allow password creation for OAuth accounts.
+  if (!user.password) return genericResponse;
+
+  // Generate a cryptographically secure random token.
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  // Store only the SHA-256 hash.
+  const tokenHash = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  // 15-minute expiration.
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  // Invalidate previous tokens and create a new one.
+  const resetRecord = await prisma.$transaction(async (tx) => {
+    await tx.passwordReset.deleteMany({
+      where: {
+        userId: user.id,
+      },
+    });
+
+    return tx.passwordReset.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+      select: {
+        id: true,
+        expiresAt: true,
+      },
+    });
+  });
+
+  // Build the reset URL.
+  const resetUrl = new URL("/reset-password", config.frontend_url_dev);
+
+  resetUrl.searchParams.set("id", resetRecord.id);
+  resetUrl.searchParams.set("token", resetToken);
+
+  try {
+    await sendForgetPasswordEmail(
+      user.email,
+      "Password Reset Email",
+      user.name || "User",
+      resetUrl.toString(),
+    );
+  } catch (error) {
+    await prisma.passwordReset.deleteMany({
+      where: {
+        id: resetRecord.id,
+        tokenHash,
+      },
+    });
+
+    throw new AppError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      "Unable to send password reset email. Please try again.",
+    );
   }
 
-  console.log(payload, "from forget password service.");
-  // const response = await sendForgetPasswordEmail(
-  //   "mdemran500600@gmail.com",
-  //   "Password Reset Email",
-  //   "Sojib Hossain",
-  //   "https://ecommercetemplate-azure.vercel.app",
-  // );
-  return email;
+  return genericResponse;
 };
 
 export const AuthServices = {

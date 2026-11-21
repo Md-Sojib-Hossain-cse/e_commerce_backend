@@ -21,4 +21,7 @@ export const config = {
   cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET!,
   resend_api_key: process.env.RESEND_API_KEY!,
   smtp_pass: process.env.SMTP_PASS!,
+  password_reset_secret: process.env.PASSWORD_RESET_SECRET!,
+  password_reset_expires_in: process.env.PASSWORD_RESET_EXPIRES_IN! || "15m",
+  password_reset_salt: process.env.PASSWORD_RESET_SALT!,
 };
