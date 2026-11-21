@@ -10,11 +10,10 @@ import type {
   TRegister,
 } from "./auth.interface";
 import { config } from "../../config";
-import { type SignOptions } from "jsonwebtoken";
+import { type JwtPayload, type SignOptions } from "jsonwebtoken";
 import AppError from "../../errors/appError";
 import httpStatus from "http-status";
 import { googleClient } from "../../lib/google";
-import { id } from "zod/v4/locales";
 import { sendForgetPasswordEmail } from "../../lib/nodeMailer";
 
 //user registration using email and password
@@ -112,21 +111,30 @@ const loginUserFromDB = async (payload: TLogin) => {
   });
 
   //making jwt payload & generate token for authenticated user
-  const jwtPayload = {
+  const jwtAccessTokenPayload = {
     id: isUserExists.id,
     name: isUserExists.name,
     email: isUserExists.email,
     role: isUserExists.role,
+    tokenType: "accessToken",
+  };
+
+  const jwtRefreshTokenPayload = {
+    id: isUserExists.id,
+    name: isUserExists.name,
+    email: isUserExists.email,
+    role: isUserExists.role,
+    tokenType: "refreshToken",
   };
 
   const accessToken = jwtUtils.generateToken(
-    jwtPayload,
+    jwtAccessTokenPayload,
     config.jwt_access_secret,
     (isRemember ? config.jwt_access_expires_in : "1d") as SignOptions,
   );
 
   const refreshToken = jwtUtils.generateToken(
-    jwtPayload,
+    jwtRefreshTokenPayload,
     config.jwt_refresh_secret,
     (isRemember ? config.jwt_refresh_expires_in : "1d") as SignOptions,
   );
@@ -138,6 +146,7 @@ const loginUserFromDB = async (payload: TLogin) => {
   };
 };
 
+//google auth service
 const googleAuthService = async (payload: TGoogleLogin) => {
   // 1. Verify Google's ID token
   const ticket = await googleClient.verifyIdToken({
@@ -243,6 +252,7 @@ const googleAuthService = async (payload: TGoogleLogin) => {
   return { userWithoutPassword, accessToken, refreshToken };
 };
 
+//forget password service
 const forgetPasswordService = async (payload: TForgetPassword) => {
   const { email } = payload;
 
@@ -331,9 +341,86 @@ const forgetPasswordService = async (payload: TForgetPassword) => {
   return genericResponse;
 };
 
+const refreshTokenService = async (token: string) => {
+  const decodedToken = jwtUtils.verifyToken(
+    token,
+    config.jwt_refresh_secret as string,
+  );
+
+  if (!decodedToken.success || !decodedToken.data) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Refresh Token!");
+  }
+
+  const payload = decodedToken.data as JwtPayload & {
+    id?: string;
+    tokenType?: string;
+  };
+
+  if (typeof payload.id !== "string" || payload.tokenType !== "refreshToken") {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Refresh Token!");
+  }
+
+  const { id } = payload;
+
+  //is user information exist on DB
+  const isUserExists = await prisma.users.findUnique({
+    where: {
+      id,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isDeleted: true,
+      status: true,
+    },
+  });
+
+  //is password exists and  matched
+  if (!isUserExists) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Refresh Token");
+  }
+
+  //check is user status and isDeleted
+  if (isUserExists.isDeleted) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "This account has been deleted. Please contact support if you believe this is a mistake.",
+    );
+  }
+
+  if (isUserExists.status !== "ACTIVE") {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Your account is currently inactive or suspended. Please activate your account or contact support.",
+    );
+  }
+
+  //making jwt payload & generate token for authenticated user
+  const jwtAccessTokenPayload = {
+    id: isUserExists.id,
+    name: isUserExists.name,
+    email: isUserExists.email,
+    role: isUserExists.role,
+    tokenType: "accessToken",
+  };
+
+  const accessToken = jwtUtils.generateToken(
+    jwtAccessTokenPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions,
+  );
+
+  return {
+    accessToken,
+  };
+};
+
 export const AuthServices = {
   registerUserOnDB,
   loginUserFromDB,
   googleAuthService,
   forgetPasswordService,
+  refreshTokenService,
 };

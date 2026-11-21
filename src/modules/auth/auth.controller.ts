@@ -3,6 +3,7 @@ import { AuthServices } from "./auth.service";
 import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
 import catchAsync from "../../utils/catchAsync";
+import AppError from "../../errors/appError";
 
 const registerUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -72,7 +73,7 @@ const googleAuth = catchAsync(
       statusCode: httpStatus.OK,
       message: "Google Authentication Successful!",
       success: true,
-      data: result,
+      data: null,
     });
   },
 );
@@ -92,9 +93,41 @@ const forgetPassword = catchAsync(
   },
 );
 
+const refreshToken = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      throw new AppError(
+        httpStatus.UNAUTHORIZED,
+        "Refresh token is missing. Please log in again.",
+      );
+    }
+
+    const result = await AuthServices.refreshTokenService(
+      refreshToken as string,
+    );
+
+    res.cookie("accessToken", result.accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24 * 1, // 1 day
+    });
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: "Token Refreshed Successfully!",
+      success: true,
+      data: null,
+    });
+  },
+);
+
 export const AuthControllers = {
   registerUser,
   loginUser,
   googleAuth,
   forgetPassword,
+  refreshToken,
 };
