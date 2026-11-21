@@ -10,14 +10,14 @@ model OrderItems {
   sku            String   @db.VarChar(50)
   variantName    String   @db.VarChar(100)
   quantity       Int
-  unitPrice      Decimal  @db.Decimal(10,2)
-  discountAmount Decimal  @db.Decimal(10,2) @default(0)
-  totalPrice     Decimal  @db.Decimal(10,2)
+  unitPrice      Decimal  @db.Decimal(10, 2)
+  discountAmount Decimal  @default(0) @db.Decimal(10, 2)
+  totalPrice     Decimal  @db.Decimal(10, 2)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt()
 
-  order   Orders          @relation(fields: [orderId], references: [id] , onDelete : Cascade)
-  variant ProductVariants @relation(fields: [variantId], references: [id] , onDelete : Cascade)
+  order   Orders          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariants @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   stockManagements StockManagements[]
 

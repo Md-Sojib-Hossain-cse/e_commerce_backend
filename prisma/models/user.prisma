@@ -17,7 +17,6 @@ model Users {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt()
 
-
   carts            Carts?
   wishlists        Wishlists?
   addresses        Addresses[]
@@ -27,6 +26,7 @@ model Users {
   productReviews   ProductReviews[]
   notifications    Notifications[]
   orders           Orders[]
+  passwordReset    PasswordReset[]
 
   @@index([role])
   @@index([status])

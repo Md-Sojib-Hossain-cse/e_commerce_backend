@@ -15,7 +15,7 @@ import globalErrorHandler from "./middlewares/globalErrorHandler";
 const app: Application = express();
 
 //security middleware
-// app.use(helmet());
+app.use(helmet());
 
 //CORS middleware
 app.use(
@@ -25,15 +25,15 @@ app.use(
 );
 
 // 3. HTTP Request Logging
-// app.use(
-//   pino({
-//     redact: [
-//       "req.headers.authorization",
-//       "req.headers.cookie",
-//       "res.headers.set-cookie",
-//     ],
-//   }),
-// );
+app.use(
+  pino({
+    redact: [
+      "req.headers.authorization",
+      "req.headers.cookie",
+      "res.headers.set-cookie",
+    ],
+  }),
+);
 
 //body parsing middlewares
 app.use(express.json({ limit: "1mb" }));

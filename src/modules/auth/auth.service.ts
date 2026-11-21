@@ -241,13 +241,26 @@ const googleAuthService = async (payload: TGoogleLogin) => {
 };
 
 const forgetPasswordService = async (payload: TForgetPassword) => {
-  const response = await sendForgetPasswordEmail(
-    "mdemran500600@gmail.com",
-    "Password Reset Email",
-    "Sojib Hossain",
-    "https://ecommercetemplate-azure.vercel.app",
-  );
-  return response;
+  const { email } = payload;
+
+  const user = await prisma.users.findUnique({
+    where: {
+      email,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "Invalid Credentials!");
+  }
+
+  console.log(payload, "from forget password service.");
+  // const response = await sendForgetPasswordEmail(
+  //   "mdemran500600@gmail.com",
+  //   "Password Reset Email",
+  //   "Sojib Hossain",
+  //   "https://ecommercetemplate-azure.vercel.app",
+  // );
+  return email;
 };
 
 export const AuthServices = {

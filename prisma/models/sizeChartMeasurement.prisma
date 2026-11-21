@@ -5,7 +5,7 @@ model SizeChartMeasurements {
   measurements Json   @db.JsonB
   sortOrder    Int    @db.SmallInt
 
-  sizeChart SizeCharts @relation(fields: [sizeChartId], references: [id] , onDelete : Cascade)
+  sizeChart SizeCharts @relation(fields: [sizeChartId], references: [id], onDelete: Cascade)
 
   @@unique([sizeChartId, size])
   @@index([sizeChartId, sortOrder])

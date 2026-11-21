@@ -12,7 +12,7 @@ model Brands {
   metaDescription String?     @db.Text()
   status          BrandStatus @default(INACTIVE)
 
-  products   Products[]
+  products Products[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt()

@@ -1,13 +1,13 @@
 model Products {
   id               String        @id @default(uuid()) @db.Uuid
-  brandId          String?        @db.Uuid
+  brandId          String?       @db.Uuid
   sizeChartId      String?       @db.Uuid
   name             String        @db.VarChar(50)
   slug             String        @db.VarChar(60)
   shortDescription String        @db.VarChar(100)
   description      String        @db.Text()
-  price            Decimal?      @db.Decimal(10 , 2)
-  salePrice        Decimal?      @db.Decimal(10 , 2)
+  price            Decimal?      @db.Decimal(10, 2)
+  salePrice        Decimal?      @db.Decimal(10, 2)
   image            String        @db.Text()
   status           ProductStatus @default(DRAFT)
   isFeatured       Boolean       @default(false)
@@ -20,7 +20,7 @@ model Products {
   updatedAt        DateTime      @updatedAt()
 
   sizeChart SizeCharts? @relation(fields: [sizeChartId], references: [id], onDelete: SetNull)
-  brand     Brands?      @relation(fields: [brandId], references: [id] , onDelete : SetNull)
+  brand     Brands?     @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
   gallery       ProductImages[]
   variant       ProductVariants[]

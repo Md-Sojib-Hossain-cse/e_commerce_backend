@@ -4,11 +4,11 @@ model Coupons {
   name           String       @db.VarChar(50)
   description    String?      @db.VarChar(255)
   type           CouponType
-  value          Decimal      @db.Decimal(10,2)    
-  maxDiscount    Decimal?     @db.Decimal(10,2)
-  minOrderAmount Decimal?     @db.Decimal(10,2)
+  value          Decimal      @db.Decimal(10, 2)
+  maxDiscount    Decimal?     @db.Decimal(10, 2)
+  minOrderAmount Decimal?     @db.Decimal(10, 2)
   usageLimit     Int?
-  usagePerUser   Int?         
+  usagePerUser   Int?
   usedCount      Int?         @default(0)
   startsAt       DateTime?
   expiresAt      DateTime?

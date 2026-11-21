@@ -32,7 +32,9 @@ var config = {
   google_redirect_uri: process.env.GOOGLE_REDIRECT_URI,
   cloudinary_client_name: process.env.CLOUDINARY_CLIENT_NAME,
   cloudinary_api_key: process.env.CLOUDINARY_API_KEY,
-  cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET
+  cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET,
+  resend_api_key: process.env.RESEND_API_KEY,
+  smtp_pass: process.env.SMTP_PASS
 };
 
 // src/utils/sendResponse.ts
@@ -715,6 +717,142 @@ import httpStatus from "http-status";
 import { OAuth2Client } from "google-auth-library";
 var googleClient = new OAuth2Client(config.google_client_id);
 
+// src/lib/nodeMailer.ts
+import nodemailer from "nodemailer";
+var transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "arifulislamofficial26@gmail.com",
+    pass: config.smtp_pass
+  }
+});
+var sendForgetPasswordEmail = async (receiverEmail, subject, receiverName, resetPasswordLink) => {
+  try {
+    const info = await transporter.sendMail({
+      from: "arifulislamofficial26@gmail.com",
+      to: receiverEmail,
+      subject,
+      html: `
+<div style="margin:0; padding:30px 15px; background-color:#f4f6f8; font-family:Arial,Helvetica,sans-serif;">
+
+  <div style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius:8px; overflow:hidden;">
+
+    <!-- Header -->
+    <div style="padding:25px 30px; text-align:center; background-color:#111827;">
+      <h1 style="margin:0; color:#ffffff; font-size:25px; font-weight:700; letter-spacing:1px;">
+        Chaity E-commerce
+      </h1>
+      <p style="margin:8px 0 0; color:#d1d5db; font-size:12px;">
+        Your Shopping Destination
+      </p>
+    </div>
+
+    <!-- Main Content -->
+    <div style="padding:35px 30px;">
+
+      <h2 style="margin:0 0 20px; color:#111827; font-size:23px; font-weight:700;">
+        Reset Your Password
+      </h2>
+
+      <p style="margin:0 0 15px; color:#374151; font-size:15px; line-height:1.8;">
+        Hello <strong>${receiverName || "Dear User"}</strong>,
+      </p>
+
+      <p style="margin:0 0 18px; color:#4b5563; font-size:14px; line-height:1.8;">
+        We received a request to reset the password associated with your account. If you made this request, click the button below to create a new password.
+      </p>
+
+      <!-- Reset Button -->
+      <div style="text-align:center; margin:30px 0;">
+        <a href="${resetPasswordLink}"
+           target="_blank"
+           style="display:inline-block; padding:15px 35px; background-color:#2563eb; color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; border-radius:6px;">
+          Reset My Password
+        </a>
+      </div>
+
+      <!-- Expiration Notice -->
+      <div style="padding:15px 18px; margin:25px 0; background-color:#eff6ff; border-left:4px solid #2563eb; border-radius:4px;">
+        <p style="margin:0; color:#1e40af; font-size:13px; line-height:1.7;">
+          <strong>Important:</strong> This password reset link will expire in <strong>15 minutes</strong> for security reasons.
+        </p>
+      </div>
+
+      <!-- Fallback Link -->
+      <p style="margin:20px 0 8px; color:#4b5563; font-size:13px; line-height:1.7;">
+        If the button above doesn't work, copy and paste the following link into your browser:
+      </p>
+
+      <p style="margin:0 0 22px; padding:12px; background-color:#f9fafb; border:1px solid #e5e7eb; border-radius:5px; font-size:12px; line-height:1.7; word-break:break-all;">
+        <a href="${resetPasswordLink}" style="color:#2563eb; text-decoration:underline;">
+          ${resetPasswordLink}
+        </a>
+      </p>
+
+      <!-- Security Notice -->
+      <div style="margin-top:25px;">
+        <h3 style="margin:0 0 10px; color:#111827; font-size:15px;">
+          Didn't Request a Password Reset?
+        </h3>
+
+        <p style="margin:0 0 18px; color:#6b7280; font-size:13px; line-height:1.8;">
+          No worries! Your account is still secure. You can safely ignore this email. Your password will remain unchanged unless you use the reset link above.
+        </p>
+
+        <p style="margin:0; color:#6b7280; font-size:13px; line-height:1.8;">
+          For your security, never share this password reset link with anyone. Our team will never ask you for your password or reset token.
+        </p>
+      </div>
+
+      <!-- Sign-off -->
+      <div style="margin-top:30px; padding-top:20px; border-top:1px solid #e5e7eb;">
+        <p style="margin:0; color:#374151; font-size:14px; line-height:1.8;">
+          Best regards,<br />
+          <strong>Chaity E-commerce Security Team</strong>
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:22px 30px; background-color:#f9fafb; border-top:1px solid #e5e7eb; text-align:center;">
+
+      <p style="margin:0 0 10px; color:#374151; font-size:13px; font-weight:600;">
+        Chaity E-commerce
+      </p>
+
+      <p style="margin:0 0 12px; color:#9ca3af; font-size:12px; line-height:1.7;">
+        Secure shopping. Trusted experience.
+      </p>
+
+      <p style="margin:0 0 12px; font-size:12px;">
+        <a href="https://chaity.com" style="color:#2563eb; text-decoration:none;">
+          Visit Website
+        </a>
+        &nbsp;|&nbsp;
+        <a href="mailto:support@chaity.com" style="color:#2563eb; text-decoration:none;">
+          Contact Support
+        </a>
+      </p>
+
+      <p style="margin:0; color:#9ca3af; font-size:11px; line-height:1.6;">
+        \xA9 2026 Chaity E-commerce. All rights reserved.<br />
+        This is an automated security notification. Please do not reply to this email.
+      </p>
+
+    </div>
+
+  </div>
+
+</div>
+`
+    });
+    console.log("Sent to your inbox! ID:", info.messageId);
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 // src/modules/auth/auth.service.ts
 var registerUserOnDB = async (payload) => {
   const { password } = payload;
@@ -887,10 +1025,20 @@ var googleAuthService = async (payload) => {
   const { password, ...userWithoutPassword } = user;
   return { userWithoutPassword, accessToken, refreshToken };
 };
+var forgetPasswordService = async (payload) => {
+  const response = await sendForgetPasswordEmail(
+    "mdemran500600@gmail.com",
+    "Password Reset Email",
+    "Sojib Hossain",
+    "https://ecommercetemplate-azure.vercel.app"
+  );
+  return response;
+};
 var AuthServices = {
   registerUserOnDB,
   loginUserFromDB,
-  googleAuthService
+  googleAuthService,
+  forgetPasswordService
 };
 
 // src/modules/auth/auth.controller.ts
@@ -973,10 +1121,23 @@ var googleAuth = catchAsync_default(
     });
   }
 );
+var forgetPassword = catchAsync_default(
+  async (req, res, next) => {
+    const payload = req.body;
+    const result = await AuthServices.forgetPasswordService(payload);
+    sendResponse(res, {
+      statusCode: httpStatus2.OK,
+      message: "Check out your email account for password reset link!",
+      success: true,
+      data: result
+    });
+  }
+);
 var AuthControllers = {
   registerUser,
   loginUser,
-  googleAuth
+  googleAuth,
+  forgetPassword
 };
 
 // src/middlewares/validateSchema.ts
@@ -1004,6 +1165,9 @@ var UserLoginValidationSchema = z2.object({
   password: z2.string().min(1, "Password is required").max(72, "Invalid credentials"),
   isRemember: z2.enum(["true", "false"]).transform((value) => value === "true").optional()
 });
+var UserForgetPasswordValidationSchema = z2.object({
+  email: z2.email()
+});
 
 // src/middlewares/multer.ts
 import multer from "multer";
@@ -1018,6 +1182,35 @@ var upload = multer({
 var uploadTextOnly = () => upload.none();
 var uploadSingleImage = (fieldName) => upload.single(fieldName);
 
+// src/middlewares/rateLimiter.ts
+import httpStatus3 from "http-status";
+import { rateLimit } from "express-rate-limit";
+var authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1e3,
+  limit: 10,
+  standardHeaders: "draft-8",
+  message: "Too many authentication attempts. Please try again after 15 minutes.",
+  legacyHeaders: false
+});
+var profilePictureUpdateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1e3,
+  limit: 5,
+  standardHeaders: "draft-8",
+  message: {
+    success: false,
+    message: "Too many authentication attempts. Please try again after 15 minutes.",
+    statusCode: httpStatus3.BAD_REQUEST
+  },
+  legacyHeaders: false
+});
+var changePasswordLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1e3,
+  limit: 5,
+  standardHeaders: "draft-8",
+  message: "Too many authentication attempts. Please try again after 24 hours.",
+  legacyHeaders: false
+});
+
 // src/modules/auth/auth.routes.ts
 var router = Router();
 router.post(
@@ -1028,18 +1221,25 @@ router.post(
 );
 router.post(
   "/login",
+  authLimiter,
   uploadTextOnly(),
   validateSchema(UserLoginValidationSchema),
   AuthControllers.loginUser
 );
 router.post("/google", AuthControllers.googleAuth);
+router.post(
+  "/forget-password",
+  uploadTextOnly(),
+  validateSchema(UserForgetPasswordValidationSchema),
+  AuthControllers.forgetPassword
+);
 var authRoutes = router;
 
 // src/modules/user/user.routes.ts
 import { Router as Router2 } from "express";
 
 // src/modules/user/user.service.ts
-import httpStatus3 from "http-status";
+import httpStatus4 from "http-status";
 
 // src/config/cloudinary.ts
 import { v2 as cloudinary } from "cloudinary";
@@ -1080,7 +1280,7 @@ var getMyUserInfoFromDB = async (payload) => {
   const { id, name, email: email2, role } = payload;
   if (!id || !name || !email2 || !role) {
     throw new appError_default(
-      httpStatus3.UNAUTHORIZED,
+      httpStatus4.UNAUTHORIZED,
       "Unauthorized access! Please log in again."
     );
   }
@@ -1105,17 +1305,17 @@ var getMyUserInfoFromDB = async (payload) => {
     }
   });
   if (!result) {
-    throw new appError_default(httpStatus3.NOT_FOUND, "User Profile Not Found!");
+    throw new appError_default(httpStatus4.NOT_FOUND, "User Profile Not Found!");
   }
   if (result.isDeleted) {
     throw new appError_default(
-      httpStatus3.NOT_FOUND,
+      httpStatus4.NOT_FOUND,
       "This account has been deleted. Please contact support if you believe this is a mistake."
     );
   }
   if (result.status !== "ACTIVE") {
     throw new appError_default(
-      httpStatus3.FORBIDDEN,
+      httpStatus4.FORBIDDEN,
       "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
@@ -1124,7 +1324,7 @@ var getMyUserInfoFromDB = async (payload) => {
 var updateMyUserInfoOnDB = async (userId, payload) => {
   if (!userId) {
     throw new appError_default(
-      httpStatus3.UNAUTHORIZED,
+      httpStatus4.UNAUTHORIZED,
       "Unauthorized access! Please log in again."
     );
   }
@@ -1138,11 +1338,11 @@ var updateMyUserInfoOnDB = async (userId, payload) => {
     }
   });
   if (!isUserExists || isUserExists.isDeleted) {
-    throw new appError_default(httpStatus3.NOT_FOUND, "User profile not found!");
+    throw new appError_default(httpStatus4.NOT_FOUND, "User profile not found!");
   }
   if (isUserExists.status !== "ACTIVE") {
     throw new appError_default(
-      httpStatus3.FORBIDDEN,
+      httpStatus4.FORBIDDEN,
       "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
@@ -1150,14 +1350,14 @@ var updateMyUserInfoOnDB = async (userId, payload) => {
   if (payload.name !== void 0) {
     const trimmedName = payload.name.trim();
     if (!trimmedName) {
-      throw new appError_default(httpStatus3.BAD_REQUEST, "Name cannot be empty.");
+      throw new appError_default(httpStatus4.BAD_REQUEST, "Name cannot be empty.");
     }
     safeUpdateData.name = trimmedName;
   }
   if (payload.phone !== void 0) {
     const trimmedPhone = payload.phone.trim();
     if (!trimmedPhone) {
-      throw new appError_default(httpStatus3.BAD_REQUEST, "Phone cannot be empty.");
+      throw new appError_default(httpStatus4.BAD_REQUEST, "Phone cannot be empty.");
     }
     safeUpdateData.phone = trimmedPhone;
   }
@@ -1166,7 +1366,7 @@ var updateMyUserInfoOnDB = async (userId, payload) => {
   }
   if (Object.keys(safeUpdateData).length === 0) {
     throw new appError_default(
-      httpStatus3.BAD_REQUEST,
+      httpStatus4.BAD_REQUEST,
       "Please provide at least one valid field to update."
     );
   }
@@ -1189,13 +1389,13 @@ var changeMyPasswordFromDB = async (userId, payload) => {
   const { newPassword, oldPassword, confirmPassword } = payload;
   if (newPassword !== confirmPassword) {
     throw new appError_default(
-      httpStatus3.BAD_REQUEST,
+      httpStatus4.BAD_REQUEST,
       "New password and confirm password do not match."
     );
   }
   if (oldPassword === confirmPassword) {
     throw new appError_default(
-      httpStatus3.BAD_REQUEST,
+      httpStatus4.BAD_REQUEST,
       "New password cannot be the same as your old password."
     );
   }
@@ -1210,23 +1410,23 @@ var changeMyPasswordFromDB = async (userId, payload) => {
     }
   });
   if (!user || user.isDeleted) {
-    throw new appError_default(httpStatus3.NOT_FOUND, "User profile not found!");
+    throw new appError_default(httpStatus4.NOT_FOUND, "User profile not found!");
   }
   if (!user.password) {
     throw new appError_default(
-      httpStatus3.FORBIDDEN,
+      httpStatus4.FORBIDDEN,
       "You can't change a local password of this account!"
     );
   }
   if (user.status !== "ACTIVE") {
     throw new appError_default(
-      httpStatus3.FORBIDDEN,
+      httpStatus4.FORBIDDEN,
       "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
   const isPasswordMatched = await bcrypt2.compare(oldPassword, user.password);
   if (!isPasswordMatched) {
-    throw new appError_default(httpStatus3.UNAUTHORIZED, "Old password is incorrect");
+    throw new appError_default(httpStatus4.UNAUTHORIZED, "Old password is incorrect");
   }
   const hashedNewPassword = await bcrypt2.hash(
     confirmPassword,
@@ -1248,7 +1448,7 @@ var changeMyPasswordFromDB = async (userId, payload) => {
 var updateProfilePictureOnDB = async (userId, payload) => {
   if (!payload) {
     throw new appError_default(
-      httpStatus3.BAD_REQUEST,
+      httpStatus4.BAD_REQUEST,
       "Please provide an image you're trying to update!"
     );
   }
@@ -1263,11 +1463,11 @@ var updateProfilePictureOnDB = async (userId, payload) => {
     }
   });
   if (!user || user.isDeleted) {
-    throw new appError_default(httpStatus3.NOT_FOUND, "User profile not found!");
+    throw new appError_default(httpStatus4.NOT_FOUND, "User profile not found!");
   }
   if (user.status !== "ACTIVE") {
     throw new appError_default(
-      httpStatus3.FORBIDDEN,
+      httpStatus4.FORBIDDEN,
       "Your account is currently inactive or suspended. Please activate your account or contact support."
     );
   }
@@ -1314,7 +1514,7 @@ var UserServices = {
 };
 
 // src/modules/user/user.controller.ts
-import httpStatus4 from "http-status";
+import httpStatus5 from "http-status";
 var getMyUserInfo = catchAsync_default(
   async (req, res, next) => {
     const userInfo = req.user;
@@ -1324,7 +1524,7 @@ var getMyUserInfo = catchAsync_default(
     sendResponse(res, {
       success: true,
       message: "User Info Retrieve Successfully!",
-      statusCode: httpStatus4.OK,
+      statusCode: httpStatus5.OK,
       data: result
     });
   }
@@ -1340,7 +1540,7 @@ var updateMyUserInfo = catchAsync_default(
     sendResponse(res, {
       success: true,
       message: "User Info Updated Successfully!",
-      statusCode: httpStatus4.OK,
+      statusCode: httpStatus5.OK,
       data: result
     });
   }
@@ -1369,7 +1569,7 @@ var changeMyPassword = catchAsync_default(
     sendResponse(res, {
       success: true,
       message: "User password has been changed successfully!",
-      statusCode: httpStatus4.OK,
+      statusCode: httpStatus5.OK,
       data: null
     });
   }
@@ -1385,7 +1585,7 @@ var updateProfilePicture = catchAsync_default(
     sendResponse(res, {
       success: true,
       message: "User Profile Picture Updated Successfully!",
-      statusCode: httpStatus4.OK,
+      statusCode: httpStatus5.OK,
       data: result
     });
   }
@@ -1398,23 +1598,23 @@ var UserControllers = {
 };
 
 // src/middlewares/auth.ts
-import httpStatus5 from "http-status";
+import httpStatus6 from "http-status";
 var auth = (...roles) => {
   return catchAsync_default(async (req, res, next) => {
     const token = req.cookies.accessToken ? req.cookies.accessToken : req.headers.authorization?.startsWith("Bearer") ? req.headers.authorization.split(" ")[1] : req.headers.authorization;
     if (!token) {
       throw new appError_default(
-        httpStatus5.UNAUTHORIZED,
+        httpStatus6.UNAUTHORIZED,
         "You are not logged in , please logged in to access your resource!"
       );
     }
     const verifyToken2 = jwtUtils.verifyToken(token, config.jwt_access_secret);
     if (!verifyToken2.success) {
-      throw new appError_default(httpStatus5.UNAUTHORIZED, "Unauthorized access!");
+      throw new appError_default(httpStatus6.UNAUTHORIZED, "Unauthorized access!");
     }
     const { email: email2, name, id, role } = verifyToken2.data;
     if (roles.length && !roles.includes(role)) {
-      throw new appError_default(httpStatus5.FORBIDDEN, "Forbidden!");
+      throw new appError_default(httpStatus6.FORBIDDEN, "Forbidden!");
     }
     const user = await prisma.users.findUnique({
       where: {
@@ -1430,23 +1630,23 @@ var auth = (...roles) => {
       }
     });
     if (!user) {
-      throw new appError_default(httpStatus5.NOT_FOUND, "User not Exists!");
+      throw new appError_default(httpStatus6.NOT_FOUND, "User not Exists!");
     }
     if (user && user.isDeleted) {
       throw new appError_default(
-        httpStatus5.NOT_FOUND,
+        httpStatus6.NOT_FOUND,
         "This account has been deleted. Please contact support if you believe this is a mistake."
       );
     }
     if (user && user.status === "INACTIVE") {
       throw new appError_default(
-        httpStatus5.FORBIDDEN,
+        httpStatus6.FORBIDDEN,
         "Your account is currently inactive. Please activate your account or contact support for assistance."
       );
     }
     if (user && user.status === "SUSPENDED") {
       throw new appError_default(
-        httpStatus5.FORBIDDEN,
+        httpStatus6.FORBIDDEN,
         "Your account has been suspended. Please reach out to our support team for further information."
       );
     }
@@ -1507,6 +1707,7 @@ router2.patch(
 );
 router2.patch(
   "/me/update-profile-picture",
+  profilePictureUpdateLimiter,
   auth(UserRoles.CUSTOMER, UserRoles.STUFF, UserRoles.ADMIN),
   uploadSingleImage("image"),
   validateSchema(updateProfilePictureValidationSchema),
@@ -1528,10 +1729,10 @@ router3.use("/user", userRoutes);
 var routes_default = router3;
 
 // src/middlewares/globalErrorHandler.ts
-import httpStatus6 from "http-status";
+import httpStatus7 from "http-status";
 import { ZodError } from "zod";
 var globalErrorHandler = (error, req, res, next) => {
-  let statusCode = httpStatus6.INTERNAL_SERVER_ERROR;
+  let statusCode = httpStatus7.INTERNAL_SERVER_ERROR;
   let message = "Something went wrong!";
   let errorName = "InternalServerError";
   let errors = [];
@@ -1540,7 +1741,7 @@ var globalErrorHandler = (error, req, res, next) => {
     message = error.message;
     errorName = error.name;
   } else if (error instanceof ZodError) {
-    statusCode = httpStatus6.BAD_REQUEST;
+    statusCode = httpStatus7.BAD_REQUEST;
     message = "Validation failed!";
     errorName = "ZodError";
     errors = error.issues.map((issue) => ({
@@ -1548,90 +1749,90 @@ var globalErrorHandler = (error, req, res, next) => {
       message: issue.message
     }));
   } else if (error instanceof prismaNamespace_exports.PrismaClientValidationError) {
-    statusCode = httpStatus6.BAD_REQUEST;
+    statusCode = httpStatus7.BAD_REQUEST;
     message = "Invalid database query. Please check the provided data.";
     errorName = "PrismaValidationError";
   } else if (error instanceof prismaNamespace_exports.PrismaClientKnownRequestError) {
     errorName = "PrismaKnownRequestError";
     switch (error.code) {
       case "P2000":
-        statusCode = httpStatus6.BAD_REQUEST;
+        statusCode = httpStatus7.BAD_REQUEST;
         message = "The provided value is too long for this database column.";
         break;
       case "P2001":
-        statusCode = httpStatus6.NOT_FOUND;
+        statusCode = httpStatus7.NOT_FOUND;
         message = "The requested record does not exist.";
         break;
       case "P2002":
-        statusCode = httpStatus6.CONFLICT;
+        statusCode = httpStatus7.CONFLICT;
         message = "A record with this value already exists.";
         break;
       case "P2003":
-        statusCode = httpStatus6.BAD_REQUEST;
+        statusCode = httpStatus7.BAD_REQUEST;
         message = "Foreign key constraint failed.";
         break;
       case "P2004":
-        statusCode = httpStatus6.BAD_REQUEST;
+        statusCode = httpStatus7.BAD_REQUEST;
         message = "A database constraint failed.";
         break;
       case "P2011":
-        statusCode = httpStatus6.BAD_REQUEST;
+        statusCode = httpStatus7.BAD_REQUEST;
         message = "A required database field cannot be null.";
         break;
       case "P2012":
-        statusCode = httpStatus6.BAD_REQUEST;
+        statusCode = httpStatus7.BAD_REQUEST;
         message = "A required value is missing.";
         break;
       case "P2014":
-        statusCode = httpStatus6.BAD_REQUEST;
+        statusCode = httpStatus7.BAD_REQUEST;
         message = "The requested change violates a relation constraint.";
         break;
       case "P2015":
       case "P2018":
-        statusCode = httpStatus6.NOT_FOUND;
+        statusCode = httpStatus7.NOT_FOUND;
         message = "A related record could not be found.";
         break;
       case "P2025":
-        statusCode = httpStatus6.NOT_FOUND;
+        statusCode = httpStatus7.NOT_FOUND;
         message = "The requested record was not found.";
         break;
       case "P2023":
-        statusCode = httpStatus6.BAD_REQUEST;
+        statusCode = httpStatus7.BAD_REQUEST;
         message = "Invalid data provided for a database field.";
         break;
       default:
-        statusCode = httpStatus6.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus7.INTERNAL_SERVER_ERROR;
         message = "A database operation failed.";
     }
   } else if (error instanceof prismaNamespace_exports.PrismaClientInitializationError) {
     errorName = "PrismaInitializationError";
     switch (error.errorCode) {
       case "P1000":
-        statusCode = httpStatus6.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus7.INTERNAL_SERVER_ERROR;
         message = "Database authentication failed.";
         break;
       case "P1001":
-        statusCode = httpStatus6.SERVICE_UNAVAILABLE;
+        statusCode = httpStatus7.SERVICE_UNAVAILABLE;
         message = "Unable to connect to the database server.";
         break;
       case "P1002":
-        statusCode = httpStatus6.SERVICE_UNAVAILABLE;
+        statusCode = httpStatus7.SERVICE_UNAVAILABLE;
         message = "Database connection timed out.";
         break;
       case "P1003":
-        statusCode = httpStatus6.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus7.INTERNAL_SERVER_ERROR;
         message = "The requested database does not exist.";
         break;
       default:
-        statusCode = httpStatus6.INTERNAL_SERVER_ERROR;
+        statusCode = httpStatus7.INTERNAL_SERVER_ERROR;
         message = "Database initialization failed.";
     }
   } else if (error instanceof prismaNamespace_exports.PrismaClientUnknownRequestError) {
-    statusCode = httpStatus6.INTERNAL_SERVER_ERROR;
+    statusCode = httpStatus7.INTERNAL_SERVER_ERROR;
     message = "An unknown database query error occurred.";
     errorName = "PrismaUnknownRequestError";
   } else if (error instanceof prismaNamespace_exports.PrismaClientRustPanicError) {
-    statusCode = httpStatus6.INTERNAL_SERVER_ERROR;
+    statusCode = httpStatus7.INTERNAL_SERVER_ERROR;
     message = "A critical database engine error occurred.";
     errorName = "PrismaRustPanicError";
   } else if (error instanceof Error) {

@@ -14,7 +14,7 @@ model Shippings {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt()
 
-  order Orders @relation(fields: [orderId], references: [id] , onDelete : Cascade)
+  order Orders @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([status])
