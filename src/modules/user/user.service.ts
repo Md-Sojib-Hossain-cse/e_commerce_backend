@@ -381,6 +381,8 @@ const deleteMyAccountFromDB = async (userId: string) => {
   };
 };
 
+//admin services
+
 const getAllUserFromDB = async (userId: string, query: TUsersQuery) => {
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
@@ -495,6 +497,7 @@ const getAllUserFromDB = async (userId: string, query: TUsersQuery) => {
         id: true,
         name: true,
         email: true,
+        phone: true,
         image: true,
         dateOfBirth: true,
         role: true,
@@ -529,6 +532,79 @@ const getAllUserFromDB = async (userId: string, query: TUsersQuery) => {
   };
 };
 
+const getUserDetailsFromDB = async (userId: string, payload: string) => {
+  if (!userId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You're not permitted to access this route!",
+    );
+  }
+
+  if (!payload) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "User details you're trying to access is not found!",
+    );
+  }
+
+  const adminInfo = await prisma.users.findUnique({
+    where: {
+      id: userId,
+      role: "ADMIN",
+    },
+    select: {
+      isDeleted: true,
+      status: true,
+    },
+  });
+
+  if (!adminInfo || adminInfo.isDeleted) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You're not permitted to access this route!",
+    );
+  }
+
+  if (adminInfo.status !== "ACTIVE") {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You're not permitted to access this route!",
+    );
+  }
+
+  const user = await prisma.users.findUnique({
+    where: {
+      id: payload,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      image: true,
+      dateOfBirth: true,
+      role: true,
+      status: true,
+      emailVerifiedAt: true,
+      lastLoggedInAt: true,
+      phoneVerifiedAt: true,
+      isDeleted: true,
+      createdAt: true,
+      updatedAt: true,
+      addresses: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "User details you're trying to access is not found!",
+    );
+  }
+
+  return user;
+};
+
 export const UserServices = {
   getMyUserInfoFromDB,
   updateMyUserInfoOnDB,
@@ -536,4 +612,5 @@ export const UserServices = {
   updateProfilePictureOnDB,
   deleteMyAccountFromDB,
   getAllUserFromDB,
+  getUserDetailsFromDB,
 };

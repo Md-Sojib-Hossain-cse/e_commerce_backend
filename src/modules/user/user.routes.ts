@@ -53,4 +53,5 @@ router.delete(
 // admin control routes
 router.get("/", auth(UserRoles.ADMIN), UserControllers.getAllUser);
 
+router.get("/:id", auth(UserRoles.ADMIN), UserControllers.getUserDetails);
 export const userRoutes = router;

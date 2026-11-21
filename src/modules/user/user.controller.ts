@@ -102,6 +102,7 @@ const deleteMyAccount = catchAsync(
   },
 );
 
+//admin apis
 const getAllUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const id = req.user?.id;
@@ -118,6 +119,26 @@ const getAllUser = catchAsync(
   },
 );
 
+const getUserDetails = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user?.id;
+
+    const payload = req.params.id;
+
+    const result = await UserServices.getUserDetailsFromDB(
+      id as string,
+      payload as string,
+    );
+
+    sendResponse(res, {
+      success: true,
+      message: "User details retrieve successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const UserControllers = {
   getMyUserInfo,
   updateMyUserInfo,
@@ -125,4 +146,5 @@ export const UserControllers = {
   updateProfilePicture,
   deleteMyAccount,
   getAllUser,
+  getUserDetails,
 };
