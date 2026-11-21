@@ -417,10 +417,41 @@ const refreshTokenService = async (token: string) => {
   };
 };
 
+const logoutUserService = async (userId: string) => {
+  if (!userId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You can't perform this action ,Please try again later!",
+    );
+  }
+
+  const user = await prisma.users.findUnique({
+    where: {
+      id: userId,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You can't perform this action ,Please try again later!",
+    );
+  }
+
+  return {
+    success: true,
+  };
+};
+
 export const AuthServices = {
   registerUserOnDB,
   loginUserFromDB,
   googleAuthService,
   forgetPasswordService,
   refreshTokenService,
+  logoutUserService,
 };

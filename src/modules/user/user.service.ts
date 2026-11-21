@@ -223,7 +223,9 @@ const changeMyPasswordFromDB = async (
     },
   });
 
-  return result;
+  return {
+    success: result ? true : false,
+  };
 };
 
 const updateProfilePictureOnDB = async (
@@ -371,7 +373,9 @@ const deleteMyAccountFromDB = async (userId: string) => {
     },
   });
 
-  return result;
+  return {
+    success: result ? true : false,
+  };
 };
 
 export const UserServices = {

@@ -1,10 +1,10 @@
-import type { NextFunction, Request, Response } from "express";
+import type { CookieOptions, NextFunction, Request, Response } from "express";
 import catchAsync from "../../utils/catchAsync";
 import { UserServices } from "./user.service";
 import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
 import type { TDecodedUser } from "../../types";
-import { config } from "../../config";
+import { clearCookieOptions } from "../auth/auth.consts";
 
 const getMyUserInfo = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -52,25 +52,15 @@ const changeMyPassword = catchAsync(
       payload,
     );
 
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      secure: config.node_env === "production",
-      sameSite: "none", // Match original cookie settings
-      path: "/",
-    });
+    res.clearCookie("accessToken", clearCookieOptions as CookieOptions);
 
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: config.node_env === "production",
-      sameSite: "none",
-      path: "/",
-    });
+    res.clearCookie("refreshToken", clearCookieOptions as CookieOptions);
 
     sendResponse(res, {
       success: true,
       message: "User password has been changed successfully!",
       statusCode: httpStatus.OK,
-      data: null,
+      data: result,
     });
   },
 );
@@ -100,24 +90,12 @@ const deleteMyAccount = catchAsync(
 
     const result = await UserServices.deleteMyAccountFromDB(id as string);
 
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      secure: config.node_env === "production",
-      sameSite: "none",
-      path: "/",
-      maxAge: 0,
-    });
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: config.node_env === "production",
-      sameSite: "none",
-      path: "/",
-      maxAge: 0,
-    });
+    res.clearCookie("accessToken", clearCookieOptions as CookieOptions);
+    res.clearCookie("refreshToken", clearCookieOptions as CookieOptions);
 
     sendResponse(res, {
       success: true,
-      message: "User Profile Picture Request for Deletion Successfully!",
+      message: "User Account deleted successfully!",
       statusCode: httpStatus.OK,
       data: result,
     });

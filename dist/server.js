@@ -1667,11 +1667,72 @@ var updateProfilePictureOnDB = async (userId, payload) => {
   }
   return result;
 };
+var deleteMyAccountFromDB = async (userId) => {
+  if (!userId) {
+    throw new appError_default(
+      httpStatus4.UNAUTHORIZED,
+      "You do not have permission to delete this account!"
+    );
+  }
+  const user = await prisma.users.findUnique({
+    where: {
+      id: userId
+    },
+    select: {
+      id: true,
+      isDeleted: true
+    }
+  });
+  if (!user || user.isDeleted) {
+    throw new appError_default(
+      httpStatus4.NOT_FOUND,
+      "User you're trying to delete possibly already deleted!"
+    );
+  }
+  const activeOrders = await prisma.orders.findFirst({
+    where: {
+      userId,
+      status: {
+        in: [
+          "PENDING",
+          "CONFIRMED",
+          "PROCESSING",
+          "OUT_FOR_DELIVERY",
+          "READY_TO_SHIP",
+          "SHIPPED"
+        ]
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+  if (activeOrders) {
+    throw new appError_default(
+      httpStatus4.CONFLICT,
+      "You cannot delete your account while you have active orders!"
+    );
+  }
+  const result = await prisma.users.update({
+    where: {
+      id: userId,
+      isDeleted: false
+    },
+    data: {
+      isDeleted: true
+    },
+    select: {
+      isDeleted: true
+    }
+  });
+  return result;
+};
 var UserServices = {
   getMyUserInfoFromDB,
   updateMyUserInfoOnDB,
   changeMyPasswordFromDB,
-  updateProfilePictureOnDB
+  updateProfilePictureOnDB,
+  deleteMyAccountFromDB
 };
 
 // src/modules/user/user.controller.ts
@@ -1751,11 +1812,38 @@ var updateProfilePicture = catchAsync_default(
     });
   }
 );
+var deleteMyAccount = catchAsync_default(
+  async (req, res, next) => {
+    const id = req.user?.id;
+    const result = await UserServices.deleteMyAccountFromDB(id);
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: "none",
+      path: "/",
+      maxAge: 0
+    });
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: config.node_env === "production",
+      sameSite: "none",
+      path: "/",
+      maxAge: 0
+    });
+    sendResponse(res, {
+      success: true,
+      message: "User Profile Picture Request for Deletion Successfully!",
+      statusCode: httpStatus5.OK,
+      data: result
+    });
+  }
+);
 var UserControllers = {
   getMyUserInfo,
   updateMyUserInfo,
   changeMyPassword,
-  updateProfilePicture
+  updateProfilePicture,
+  deleteMyAccount
 };
 
 // src/middlewares/auth.ts
@@ -1880,6 +1968,11 @@ router2.patch(
   uploadTextOnly(),
   validateSchema(updateMyUserPasswordValidationSchema),
   UserControllers.changeMyPassword
+);
+router2.delete(
+  "/me",
+  auth(UserRoles.ADMIN, UserRoles.CUSTOMER, UserRoles.STUFF),
+  UserControllers.deleteMyAccount
 );
 var userRoutes = router2;
 

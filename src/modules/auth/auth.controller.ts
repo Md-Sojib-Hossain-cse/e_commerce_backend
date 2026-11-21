@@ -1,9 +1,10 @@
-import type { NextFunction, Request, Response } from "express";
+import type { CookieOptions, NextFunction, Request, Response } from "express";
 import { AuthServices } from "./auth.service";
 import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
 import catchAsync from "../../utils/catchAsync";
 import AppError from "../../errors/appError";
+import { clearCookieOptions } from "./auth.consts";
 
 const registerUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -124,10 +125,31 @@ const refreshToken = catchAsync(
   },
 );
 
+const logoutUser = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id;
+
+    const result = await AuthServices.logoutUserService(userId as string);
+
+    if (result.success) {
+      res.clearCookie("accessToken", clearCookieOptions as CookieOptions);
+      res.clearCookie("refreshToken", clearCookieOptions as CookieOptions);
+    }
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      message: "User logged out successfully!",
+      success: true,
+      data: null,
+    });
+  },
+);
+
 export const AuthControllers = {
   registerUser,
   loginUser,
   googleAuth,
   forgetPassword,
   refreshToken,
+  logoutUser,
 };

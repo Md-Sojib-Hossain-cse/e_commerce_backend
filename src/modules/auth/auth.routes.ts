@@ -8,6 +8,8 @@ import {
 } from "./auth.validation";
 import { uploadTextOnly } from "../../middlewares/multer";
 import { authLimiter } from "../../middlewares/rateLimiter";
+import { auth } from "../../middlewares/auth";
+import { UserRoles } from "../../../generated/prisma/enums";
 
 const router = Router();
 
@@ -27,6 +29,12 @@ router.post(
 );
 
 router.post("/google", AuthControllers.googleAuth);
+
+router.post(
+  "/logout",
+  auth(UserRoles.CUSTOMER, UserRoles.ADMIN, UserRoles.STUFF),
+  AuthControllers.logoutUser,
+);
 
 router.post(
   "/forget-password",
