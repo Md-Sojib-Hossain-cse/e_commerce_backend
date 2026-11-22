@@ -51,7 +51,22 @@ router.delete(
 );
 
 // admin control routes
-router.get("/", auth(UserRoles.ADMIN), UserControllers.getAllUser);
+router.get(
+  "/",
+  auth(UserRoles.ADMIN, UserRoles.SUPER_ADMIN),
+  UserControllers.getAllUser,
+);
 
-router.get("/:id", auth(UserRoles.ADMIN), UserControllers.getUserDetails);
+router.get(
+  "/:id",
+  auth(UserRoles.ADMIN, UserRoles.SUPER_ADMIN),
+  UserControllers.getUserDetails,
+);
+
+router.patch(
+  "/:id/change-status",
+  auth(UserRoles.ADMIN, UserRoles.SUPER_ADMIN),
+  UserControllers.changeUserStatus,
+);
+
 export const userRoutes = router;

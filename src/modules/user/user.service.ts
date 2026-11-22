@@ -15,7 +15,8 @@ import cloudinary from "../../config/cloudinary";
 import bcrypt from "bcryptjs";
 import { config } from "../../config";
 import type { UsersWhereInput } from "../../../generated/prisma/models";
-import { allowedSortFields } from "./user.const";
+import { allowedSortFields, allowedUserStatus } from "./user.const";
+import type { UserStatus } from "../../../generated/prisma/enums";
 
 const getMyUserInfoFromDB = async (payload: TDecodedUser) => {
   const { id, name, email, role } = payload;
@@ -480,7 +481,7 @@ const getAllUserFromDB = async (userId: string, query: TUsersQuery) => {
   if (
     !isUserExists ||
     isUserExists.isDeleted ||
-    isUserExists.role !== "ADMIN"
+    (isUserExists.role !== "SUPER_ADMIN" && isUserExists.role !== "ADMIN")
   ) {
     throw new AppError(
       httpStatus.UNAUTHORIZED,
@@ -550,15 +551,19 @@ const getUserDetailsFromDB = async (userId: string, payload: string) => {
   const adminInfo = await prisma.users.findUnique({
     where: {
       id: userId,
-      role: "ADMIN",
     },
     select: {
       isDeleted: true,
       status: true,
+      role: true,
     },
   });
 
-  if (!adminInfo || adminInfo.isDeleted) {
+  if (
+    !adminInfo ||
+    adminInfo.isDeleted ||
+    (adminInfo.role !== "SUPER_ADMIN" && adminInfo.role !== "ADMIN")
+  ) {
     throw new AppError(
       httpStatus.FORBIDDEN,
       "You're not permitted to access this route!",
@@ -605,6 +610,116 @@ const getUserDetailsFromDB = async (userId: string, payload: string) => {
   return user;
 };
 
+const changeUserStatusOnDB = async (
+  performerId: string,
+  userId: string,
+  payload: {
+    status: UserStatus;
+  },
+) => {
+  if (!performerId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have permission to change this account status!",
+    );
+  }
+
+  if (
+    !userId ||
+    !payload.status ||
+    !allowedUserStatus.includes(payload.status)
+  ) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Please provide valid information to change user status!",
+    );
+  }
+
+  const performerInfo = await prisma.users.findFirst({
+    where: {
+      id: performerId,
+      isDeleted: false,
+      status: "ACTIVE",
+      role: {
+        in: ["ADMIN", "SUPER_ADMIN"],
+      },
+    },
+    select: {
+      role: true,
+    },
+  });
+
+  if (!performerInfo) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to change this account status!",
+    );
+  }
+
+  const targetUser = await prisma.users.findFirst({
+    where: {
+      id: userId,
+      isDeleted: false,
+    },
+    select: {
+      role: true,
+      status: true,
+    },
+  });
+
+  if (!targetUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  if (
+    targetUser.role === "SUPER_ADMIN" ||
+    (targetUser.role === "ADMIN" && performerInfo.role !== "SUPER_ADMIN")
+  ) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to change this account status!",
+    );
+  }
+
+  if (performerId === userId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You cannot change your own account status!",
+    );
+  }
+
+  if (targetUser.status === payload.status) {
+    throw new AppError(httpStatus.BAD_REQUEST, "User already has this status!");
+  }
+
+  const updatedUser = await prisma.users.update({
+    where: {
+      id: userId,
+      isDeleted: false,
+    },
+    data: {
+      status: payload.status,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      image: true,
+      dateOfBirth: true,
+      role: true,
+      status: true,
+      emailVerifiedAt: true,
+      phoneVerifiedAt: true,
+      isDeleted: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return updatedUser;
+};
+
 export const UserServices = {
   getMyUserInfoFromDB,
   updateMyUserInfoOnDB,
@@ -613,4 +728,5 @@ export const UserServices = {
   deleteMyAccountFromDB,
   getAllUserFromDB,
   getUserDetailsFromDB,
+  changeUserStatusOnDB,
 };

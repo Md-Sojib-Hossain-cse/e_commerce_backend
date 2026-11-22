@@ -5,3 +5,5 @@ export const allowedSortFields = [
   "email",
   "lastLoggedInAt",
 ] as const;
+
+export const allowedUserStatus = ["ACTIVE", "INACTIVE", "SUSPENDED"] as const;

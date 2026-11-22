@@ -5,6 +5,7 @@ import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
 import type { TDecodedUser } from "../../types";
 import { clearCookieOptions } from "../auth/auth.consts";
+import type { UserStatus } from "../../../generated/prisma/enums";
 
 const getMyUserInfo = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -139,6 +140,29 @@ const getUserDetails = catchAsync(
   },
 );
 
+const changeUserStatus = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user?.id;
+
+    const userId = req.params.id;
+
+    const payload = req.body;
+
+    const result = await UserServices.changeUserStatusOnDB(
+      id as string,
+      userId as string,
+      payload as { status: UserStatus },
+    );
+
+    sendResponse(res, {
+      success: true,
+      message: "User status changed successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const UserControllers = {
   getMyUserInfo,
   updateMyUserInfo,
@@ -147,4 +171,5 @@ export const UserControllers = {
   deleteMyAccount,
   getAllUser,
   getUserDetails,
+  changeUserStatus,
 };

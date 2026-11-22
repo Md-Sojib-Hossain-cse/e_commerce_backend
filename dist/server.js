@@ -1437,11 +1437,17 @@ var auth = (...roles) => {
     }
     const verifyToken2 = jwtUtils.verifyToken(token, config.jwt_access_secret);
     if (!verifyToken2.success) {
-      throw new appError_default(httpStatus4.UNAUTHORIZED, "Unauthorized access!");
+      throw new appError_default(
+        httpStatus4.UNAUTHORIZED,
+        "Unauthorized access , You do not have permission to access this route!"
+      );
     }
     const { email: email2, name, id, role } = verifyToken2.data;
     if (roles.length && !roles.includes(role)) {
-      throw new appError_default(httpStatus4.FORBIDDEN, "Forbidden!");
+      throw new appError_default(
+        httpStatus4.FORBIDDEN,
+        "Forbidden , You do not have permission to access this route!"
+      );
     }
     const user = await prisma.users.findUnique({
       where: {
@@ -1558,6 +1564,17 @@ var uploadCloudinary_default = uploadToCloudinary;
 
 // src/modules/user/user.service.ts
 import bcrypt2 from "bcryptjs";
+
+// src/modules/user/user.const.ts
+var allowedSortFields = [
+  "createdAt",
+  "updatedAt",
+  "name",
+  "email",
+  "lastLoggedInAt"
+];
+
+// src/modules/user/user.service.ts
 var getMyUserInfoFromDB = async (payload) => {
   const { id, name, email: email2, role } = payload;
   if (!id || !name || !email2 || !role) {
@@ -1852,12 +1869,200 @@ var deleteMyAccountFromDB = async (userId) => {
     success: result ? true : false
   };
 };
+var getAllUserFromDB = async (userId, query) => {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+  const skip = (page - 1) * limit;
+  const sortBy = typeof query.sortBy === "string" && allowedSortFields.includes(query.sortBy) ? query.sortBy : "createdAt";
+  const sortOrder = query.sortOrder && query.sortOrder === "asc" ? "asc" : "desc";
+  const andConditions = [];
+  const orConditions = [];
+  const usersSearchableFields = ["name", "email", "phone"];
+  if (query.isDeleted) {
+    andConditions.push({
+      isDeleted: Boolean(query.isDeleted) === true ? true : false
+    });
+  }
+  if (query.role) {
+    andConditions.push({
+      role: query.role
+    });
+  }
+  if (query.status) {
+    andConditions.push({
+      status: query.status
+    });
+  }
+  if (query.lastLoggedInAt) {
+    andConditions.push({
+      lastLoggedInAt: {
+        gte: new Date(query.lastLoggedInAt)
+      }
+    });
+  }
+  if (query.dateOfBirth) {
+    andConditions.push({
+      dateOfBirth: {
+        gte: new Date(query.dateOfBirth)
+      }
+    });
+  }
+  if (query.createdAt) {
+    andConditions.push({
+      createdAt: {
+        gte: new Date(query.createdAt)
+      }
+    });
+  }
+  if (query.searchTerm) {
+    usersSearchableFields.forEach((field) => {
+      orConditions.push({
+        [field]: {
+          contains: query.searchTerm.trim(),
+          mode: "insensitive"
+        }
+      });
+    });
+    andConditions.push({
+      OR: orConditions
+    });
+  }
+  if (!userId) {
+    throw new appError_default(
+      httpStatus5.UNAUTHORIZED,
+      "You do not have permission , to see users information!"
+    );
+  }
+  const isUserExists = await prisma.users.findUnique({
+    where: {
+      id: userId
+    },
+    select: {
+      isDeleted: true,
+      role: true
+    }
+  });
+  if (!isUserExists || isUserExists.isDeleted || isUserExists.role !== "ADMIN") {
+    throw new appError_default(
+      httpStatus5.UNAUTHORIZED,
+      "You do not have permission , to see users information!"
+    );
+  }
+  const [result, total] = await Promise.all([
+    prisma.users.findMany({
+      where: {
+        AND: andConditions
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        image: true,
+        dateOfBirth: true,
+        role: true,
+        status: true,
+        emailVerifiedAt: true,
+        lastLoggedInAt: true,
+        phoneVerifiedAt: true,
+        isDeleted: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: {
+        [sortBy]: sortOrder
+      },
+      skip,
+      take: limit
+    }),
+    prisma.users.count({
+      where: {
+        AND: andConditions
+      }
+    })
+  ]);
+  return {
+    result,
+    meta: {
+      total,
+      page,
+      limit
+    }
+  };
+};
+var getUserDetailsFromDB = async (userId, payload) => {
+  if (!userId) {
+    throw new appError_default(
+      httpStatus5.UNAUTHORIZED,
+      "You're not permitted to access this route!"
+    );
+  }
+  if (!payload) {
+    throw new appError_default(
+      httpStatus5.NOT_FOUND,
+      "User details you're trying to access is not found!"
+    );
+  }
+  const adminInfo = await prisma.users.findUnique({
+    where: {
+      id: userId,
+      role: "ADMIN"
+    },
+    select: {
+      isDeleted: true,
+      status: true
+    }
+  });
+  if (!adminInfo || adminInfo.isDeleted) {
+    throw new appError_default(
+      httpStatus5.FORBIDDEN,
+      "You're not permitted to access this route!"
+    );
+  }
+  if (adminInfo.status !== "ACTIVE") {
+    throw new appError_default(
+      httpStatus5.FORBIDDEN,
+      "You're not permitted to access this route!"
+    );
+  }
+  const user = await prisma.users.findUnique({
+    where: {
+      id: payload
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      image: true,
+      dateOfBirth: true,
+      role: true,
+      status: true,
+      emailVerifiedAt: true,
+      lastLoggedInAt: true,
+      phoneVerifiedAt: true,
+      isDeleted: true,
+      createdAt: true,
+      updatedAt: true,
+      addresses: true
+    }
+  });
+  if (!user) {
+    throw new appError_default(
+      httpStatus5.NOT_FOUND,
+      "User details you're trying to access is not found!"
+    );
+  }
+  return user;
+};
 var UserServices = {
   getMyUserInfoFromDB,
   updateMyUserInfoOnDB,
   changeMyPasswordFromDB,
   updateProfilePictureOnDB,
-  deleteMyAccountFromDB
+  deleteMyAccountFromDB,
+  getAllUserFromDB,
+  getUserDetailsFromDB
 };
 
 // src/modules/user/user.controller.ts
@@ -1940,12 +2145,43 @@ var deleteMyAccount = catchAsync_default(
     });
   }
 );
+var getAllUser = catchAsync_default(
+  async (req, res, next) => {
+    const id = req.user?.id;
+    const queries = req.query;
+    const result = await UserServices.getAllUserFromDB(id, queries);
+    sendResponse(res, {
+      success: true,
+      message: "Users data retrieve successfully!",
+      statusCode: httpStatus6.OK,
+      data: result
+    });
+  }
+);
+var getUserDetails = catchAsync_default(
+  async (req, res, next) => {
+    const id = req.user?.id;
+    const payload = req.params.id;
+    const result = await UserServices.getUserDetailsFromDB(
+      id,
+      payload
+    );
+    sendResponse(res, {
+      success: true,
+      message: "User details retrieve successfully!",
+      statusCode: httpStatus6.OK,
+      data: result
+    });
+  }
+);
 var UserControllers = {
   getMyUserInfo,
   updateMyUserInfo,
   changeMyPassword,
   updateProfilePicture,
-  deleteMyAccount
+  deleteMyAccount,
+  getAllUser,
+  getUserDetails
 };
 
 // src/modules/user/user.validation.ts
@@ -2013,6 +2249,8 @@ router2.delete(
   auth(UserRoles.ADMIN, UserRoles.CUSTOMER, UserRoles.STUFF),
   UserControllers.deleteMyAccount
 );
+router2.get("/", auth(UserRoles.ADMIN), UserControllers.getAllUser);
+router2.get("/:id", auth(UserRoles.ADMIN), UserControllers.getUserDetails);
 var userRoutes = router2;
 
 // src/routes/index.ts
