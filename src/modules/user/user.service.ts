@@ -26,7 +26,7 @@ import type { UserStatus } from "../../../generated/prisma/enums";
 
 const getMyUserInfoFromDB = async (payload: TDecodedUser) => {
   const { id, name, email, role } = payload;
-  if (!id || !name || !email || !role) {
+  if (!id) {
     throw new AppError(
       httpStatus.UNAUTHORIZED,
       "Unauthorized access! Please log in again.",
@@ -171,7 +171,7 @@ const changeMyPasswordFromDB = async (
     );
   }
 
-  if (oldPassword === confirmPassword) {
+  if (oldPassword === newPassword) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "New password cannot be the same as your old password.",
@@ -227,6 +227,9 @@ const changeMyPasswordFromDB = async (
     },
     data: {
       password: hashedNewPassword,
+      tokenVersion: {
+        increment: 1,
+      },
     },
     select: {
       updatedAt: true,
@@ -327,64 +330,70 @@ const deleteMyAccountFromDB = async (userId: string) => {
     );
   }
 
-  const user = await prisma.users.findUnique({
-    where: {
-      id: userId,
-    },
-    select: {
-      id: true,
-      isDeleted: true,
-    },
-  });
-
-  if (!user || user.isDeleted) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      "User you're trying to delete possibly already deleted!",
-    );
-  }
-
-  const activeOrders = await prisma.orders.findFirst({
-    where: {
-      userId,
-      status: {
-        in: [
-          "PENDING",
-          "CONFIRMED",
-          "PROCESSING",
-          "OUT_FOR_DELIVERY",
-          "READY_TO_SHIP",
-          "SHIPPED",
-        ],
+  const deletedUser = await prisma.$transaction(async (tx) => {
+    const user = await prisma.users.findUnique({
+      where: {
+        id: userId,
       },
-    },
-    select: {
-      id: true,
-    },
-  });
+      select: {
+        id: true,
+        isDeleted: true,
+      },
+    });
 
-  if (activeOrders) {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "You cannot delete your account while you have active orders!",
-    );
-  }
+    if (!user || user.isDeleted) {
+      throw new AppError(
+        httpStatus.NOT_FOUND,
+        "User you're trying to delete possibly already deleted!",
+      );
+    }
+    const activeOrders = await prisma.orders.findFirst({
+      where: {
+        userId,
+        status: {
+          in: [
+            "PENDING",
+            "CONFIRMED",
+            "PROCESSING",
+            "OUT_FOR_DELIVERY",
+            "READY_TO_SHIP",
+            "SHIPPED",
+          ],
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
 
-  const result = await prisma.users.update({
-    where: {
-      id: userId,
-      isDeleted: false,
-    },
-    data: {
-      isDeleted: true,
-    },
-    select: {
-      isDeleted: true,
-    },
+    if (activeOrders) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "You cannot delete your account while you have active orders!",
+      );
+    }
+
+    const result = await prisma.users.update({
+      where: {
+        id: userId,
+        isDeleted: false,
+      },
+      data: {
+        isDeleted: true,
+        tokenVersion: {
+          increment: 1,
+        },
+      },
+      select: {
+        isDeleted: true,
+      },
+    });
+
+    return result;
   });
 
   return {
-    success: result ? true : false,
+    success: deletedUser ? true : false,
   };
 };
 
@@ -411,9 +420,16 @@ const getAllUserFromDB = async (userId: string, query: TUsersQuery) => {
   const usersSearchableFields = ["name", "email", "phone"];
 
   if (query.isDeleted) {
-    andConditions.push({
-      isDeleted: Boolean(query.isDeleted) === true ? true : false,
-    });
+    console.log({ delted: query.isDeleted });
+    if (typeof query.isDeleted === "string") {
+      andConditions.push({
+        isDeleted: query.isDeleted === "true" ? true : false,
+      });
+    } else {
+      andConditions.push({
+        isDeleted: Boolean(query.isDeleted) === true ? true : false,
+      });
+    }
   }
 
   if (query.role) {
@@ -705,6 +721,9 @@ const changeUserStatusOnDB = async (
     },
     data: {
       status: payload.status,
+      tokenVersion: {
+        increment: 1,
+      },
     },
     select: {
       id: true,
@@ -819,46 +838,161 @@ const changeUserRoleOnDB = async (
     throw new AppError(httpStatus.BAD_REQUEST, "User already has this role!");
   }
 
-  const result = await prisma.users.updateMany({
-    where: {
-      id: userId,
-      isDeleted: false,
-      status: "ACTIVE",
-      role: targetUser.role,
-    },
-    data: {
-      role: payload.role,
-      tokenVersion: {
-        increment: 1,
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    const result = await tx.users.updateMany({
+      where: {
+        id: userId,
+        isDeleted: false,
+        status: "ACTIVE",
+        role: targetUser.role,
       },
-    },
-  });
+      data: {
+        role: payload.role,
+        tokenVersion: {
+          increment: 1,
+        },
+      },
+    });
 
-  if (result.count === 0) {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "User information changed. Please try again!",
-    );
-  }
+    if (result.count !== 1) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "User information changed. Please try again!",
+      );
+    }
 
-  const updatedUser = await prisma.users.findUnique({
-    where: {
-      id: userId,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      image: true,
-      role: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+    const updated = await tx.users.findFirst({
+      where: {
+        id: userId,
+        isDeleted: false,
+        status: "ACTIVE",
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        image: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!updated) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Unable to retrieve updated user information!",
+      );
+    }
+
+    return updated;
   });
 
   return updatedUser;
+};
+
+const deleteUserFromDB = async (performerId: string, userId: string) => {
+  if (!performerId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have permission to delete this account!",
+    );
+  }
+
+  if (!userId) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Please provide valid information to delete a user!",
+    );
+  }
+
+  if (performerId === userId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You cannot delete your own account like this!",
+    );
+  }
+
+  const deletedUser = await prisma.$transaction(async (tx) => {
+    const performerInfo = await tx.users.findFirst({
+      where: {
+        id: performerId,
+        isDeleted: false,
+        status: "ACTIVE",
+        role: {
+          in: ["ADMIN", "SUPER_ADMIN"],
+        },
+      },
+      select: {
+        role: true,
+      },
+    });
+
+    if (!performerInfo) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have permission to delete this account!",
+      );
+    }
+
+    const targetUser = await tx.users.findFirst({
+      where: {
+        id: userId,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        role: true,
+      },
+    });
+
+    if (!targetUser) {
+      throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+    }
+
+    if (
+      targetUser.role === "SUPER_ADMIN" ||
+      (targetUser.role === "ADMIN" && performerInfo.role !== "SUPER_ADMIN")
+    ) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have permission to delete this user!",
+      );
+    }
+
+    const result = await tx.users.updateMany({
+      where: {
+        id: userId,
+        isDeleted: false,
+        role: targetUser.role,
+      },
+      data: {
+        isDeleted: true,
+        tokenVersion: {
+          increment: 1,
+        },
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "User information changed. Please try again!",
+      );
+    }
+
+    return {
+      id: targetUser.id,
+    };
+  });
+
+  return {
+    success: true,
+    message: "User account deleted successfully!",
+    data: deletedUser,
+  };
 };
 
 export const UserServices = {
@@ -871,4 +1005,5 @@ export const UserServices = {
   getUserDetailsFromDB,
   changeUserStatusOnDB,
   changeUserRoleOnDB,
+  deleteUserFromDB,
 };
