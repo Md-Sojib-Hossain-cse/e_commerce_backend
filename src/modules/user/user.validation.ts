@@ -1,4 +1,5 @@
 import z from "zod";
+import { UserRoles, UserStatus } from "../../../generated/prisma/enums";
 
 export const updateMyUserInfoValidationSchema = z.object({
   name: z
@@ -53,4 +54,12 @@ export const updateMyUserPasswordValidationSchema = z.object({
 
 export const updateProfilePictureValidationSchema = z.object({
   image: z.string().url("Invalid image URL").optional(),
+});
+
+export const changeUserStatusValidationSchema = z.object({
+  status: z.enum(UserStatus),
+});
+
+export const changeUserRoleValidationSchema = z.object({
+  role: z.enum(UserRoles),
 });

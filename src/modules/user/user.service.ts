@@ -420,7 +420,6 @@ const getAllUserFromDB = async (userId: string, query: TUsersQuery) => {
   const usersSearchableFields = ["name", "email", "phone"];
 
   if (query.isDeleted) {
-    console.log({ delted: query.isDeleted });
     if (typeof query.isDeleted === "string") {
       andConditions.push({
         isDeleted: query.isDeleted === "true" ? true : false,

@@ -4,6 +4,8 @@ import { auth } from "../../middlewares/auth";
 import { UserRoles } from "../../../generated/prisma/enums";
 import { validateSchema } from "../../middlewares/validateSchema";
 import {
+  changeUserRoleValidationSchema,
+  changeUserStatusValidationSchema,
   updateMyUserInfoValidationSchema,
   updateMyUserPasswordValidationSchema,
   updateProfilePictureValidationSchema,
@@ -66,12 +68,14 @@ router.get(
 router.patch(
   "/:id/change-status",
   auth(UserRoles.ADMIN, UserRoles.SUPER_ADMIN),
+  validateSchema(changeUserStatusValidationSchema),
   UserControllers.changeUserStatus,
 );
 
 router.patch(
   "/:id/change-role",
   auth(UserRoles.ADMIN, UserRoles.SUPER_ADMIN),
+  validateSchema(changeUserRoleValidationSchema),
   UserControllers.changeUserRole,
 );
 

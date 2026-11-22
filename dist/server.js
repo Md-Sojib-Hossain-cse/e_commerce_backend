@@ -1614,7 +1614,7 @@ var allowedRolesByPerformer = {
 // src/modules/user/user.service.ts
 var getMyUserInfoFromDB = async (payload) => {
   const { id, name, email: email2, role } = payload;
-  if (!id || !name || !email2 || !role) {
+  if (!id) {
     throw new appError_default(
       httpStatus5.UNAUTHORIZED,
       "Unauthorized access! Please log in again."
@@ -1729,7 +1729,7 @@ var changeMyPasswordFromDB = async (userId, payload) => {
       "New password and confirm password do not match."
     );
   }
-  if (oldPassword === confirmPassword) {
+  if (oldPassword === newPassword) {
     throw new appError_default(
       httpStatus5.BAD_REQUEST,
       "New password cannot be the same as your old password."
@@ -1773,7 +1773,10 @@ var changeMyPasswordFromDB = async (userId, payload) => {
       id: userId
     },
     data: {
-      password: hashedNewPassword
+      password: hashedNewPassword,
+      tokenVersion: {
+        increment: 1
+      }
     },
     select: {
       updatedAt: true
@@ -1851,59 +1854,65 @@ var deleteMyAccountFromDB = async (userId) => {
       "You do not have permission to delete this account!"
     );
   }
-  const user = await prisma.users.findUnique({
-    where: {
-      id: userId
-    },
-    select: {
-      id: true,
-      isDeleted: true
-    }
-  });
-  if (!user || user.isDeleted) {
-    throw new appError_default(
-      httpStatus5.NOT_FOUND,
-      "User you're trying to delete possibly already deleted!"
-    );
-  }
-  const activeOrders = await prisma.orders.findFirst({
-    where: {
-      userId,
-      status: {
-        in: [
-          "PENDING",
-          "CONFIRMED",
-          "PROCESSING",
-          "OUT_FOR_DELIVERY",
-          "READY_TO_SHIP",
-          "SHIPPED"
-        ]
+  const deletedUser = await prisma.$transaction(async (tx) => {
+    const user = await prisma.users.findUnique({
+      where: {
+        id: userId
+      },
+      select: {
+        id: true,
+        isDeleted: true
       }
-    },
-    select: {
-      id: true
+    });
+    if (!user || user.isDeleted) {
+      throw new appError_default(
+        httpStatus5.NOT_FOUND,
+        "User you're trying to delete possibly already deleted!"
+      );
     }
-  });
-  if (activeOrders) {
-    throw new appError_default(
-      httpStatus5.CONFLICT,
-      "You cannot delete your account while you have active orders!"
-    );
-  }
-  const result = await prisma.users.update({
-    where: {
-      id: userId,
-      isDeleted: false
-    },
-    data: {
-      isDeleted: true
-    },
-    select: {
-      isDeleted: true
+    const activeOrders = await prisma.orders.findFirst({
+      where: {
+        userId,
+        status: {
+          in: [
+            "PENDING",
+            "CONFIRMED",
+            "PROCESSING",
+            "OUT_FOR_DELIVERY",
+            "READY_TO_SHIP",
+            "SHIPPED"
+          ]
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+    if (activeOrders) {
+      throw new appError_default(
+        httpStatus5.CONFLICT,
+        "You cannot delete your account while you have active orders!"
+      );
     }
+    const result = await prisma.users.update({
+      where: {
+        id: userId,
+        isDeleted: false
+      },
+      data: {
+        isDeleted: true,
+        tokenVersion: {
+          increment: 1
+        }
+      },
+      select: {
+        isDeleted: true
+      }
+    });
+    return result;
   });
   return {
-    success: result ? true : false
+    success: deletedUser ? true : false
   };
 };
 var getAllUserFromDB = async (userId, query) => {
@@ -1916,9 +1925,16 @@ var getAllUserFromDB = async (userId, query) => {
   const orConditions = [];
   const usersSearchableFields = ["name", "email", "phone"];
   if (query.isDeleted) {
-    andConditions.push({
-      isDeleted: Boolean(query.isDeleted) === true ? true : false
-    });
+    console.log({ delted: query.isDeleted });
+    if (typeof query.isDeleted === "string") {
+      andConditions.push({
+        isDeleted: query.isDeleted === "true" ? true : false
+      });
+    } else {
+      andConditions.push({
+        isDeleted: Boolean(query.isDeleted) === true ? true : false
+      });
+    }
   }
   if (query.role) {
     andConditions.push({
@@ -2158,7 +2174,10 @@ var changeUserStatusOnDB = async (performerId, userId, payload) => {
       isDeleted: false
     },
     data: {
-      status: payload.status
+      status: payload.status,
+      tokenVersion: {
+        increment: 1
+      }
     },
     select: {
       id: true,
@@ -2251,43 +2270,141 @@ var changeUserRoleOnDB = async (performerId, userId, payload) => {
   if (targetUser.role === payload.role) {
     throw new appError_default(httpStatus5.BAD_REQUEST, "User already has this role!");
   }
-  const result = await prisma.users.updateMany({
-    where: {
-      id: userId,
-      isDeleted: false,
-      status: "ACTIVE",
-      role: targetUser.role
-    },
-    data: {
-      role: payload.role,
-      tokenVersion: {
-        increment: 1
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    const result = await tx.users.updateMany({
+      where: {
+        id: userId,
+        isDeleted: false,
+        status: "ACTIVE",
+        role: targetUser.role
+      },
+      data: {
+        role: payload.role,
+        tokenVersion: {
+          increment: 1
+        }
       }
+    });
+    if (result.count !== 1) {
+      throw new appError_default(
+        httpStatus5.CONFLICT,
+        "User information changed. Please try again!"
+      );
     }
-  });
-  if (result.count === 0) {
-    throw new appError_default(
-      httpStatus5.CONFLICT,
-      "User information changed. Please try again!"
-    );
-  }
-  const updatedUser = await prisma.users.findUnique({
-    where: {
-      id: userId
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      image: true,
-      role: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true
+    const updated = await tx.users.findFirst({
+      where: {
+        id: userId,
+        isDeleted: false,
+        status: "ACTIVE"
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        image: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    if (!updated) {
+      throw new appError_default(
+        httpStatus5.CONFLICT,
+        "Unable to retrieve updated user information!"
+      );
     }
+    return updated;
   });
   return updatedUser;
+};
+var deleteUserFromDB = async (performerId, userId) => {
+  if (!performerId) {
+    throw new appError_default(
+      httpStatus5.UNAUTHORIZED,
+      "You do not have permission to delete this account!"
+    );
+  }
+  if (!userId) {
+    throw new appError_default(
+      httpStatus5.BAD_REQUEST,
+      "Please provide valid information to delete a user!"
+    );
+  }
+  if (performerId === userId) {
+    throw new appError_default(
+      httpStatus5.FORBIDDEN,
+      "You cannot delete your own account like this!"
+    );
+  }
+  const deletedUser = await prisma.$transaction(async (tx) => {
+    const performerInfo = await tx.users.findFirst({
+      where: {
+        id: performerId,
+        isDeleted: false,
+        status: "ACTIVE",
+        role: {
+          in: ["ADMIN", "SUPER_ADMIN"]
+        }
+      },
+      select: {
+        role: true
+      }
+    });
+    if (!performerInfo) {
+      throw new appError_default(
+        httpStatus5.FORBIDDEN,
+        "You do not have permission to delete this account!"
+      );
+    }
+    const targetUser = await tx.users.findFirst({
+      where: {
+        id: userId,
+        isDeleted: false
+      },
+      select: {
+        id: true,
+        role: true
+      }
+    });
+    if (!targetUser) {
+      throw new appError_default(httpStatus5.NOT_FOUND, "User not found!");
+    }
+    if (targetUser.role === "SUPER_ADMIN" || targetUser.role === "ADMIN" && performerInfo.role !== "SUPER_ADMIN") {
+      throw new appError_default(
+        httpStatus5.FORBIDDEN,
+        "You do not have permission to delete this user!"
+      );
+    }
+    const result = await tx.users.updateMany({
+      where: {
+        id: userId,
+        isDeleted: false,
+        role: targetUser.role
+      },
+      data: {
+        isDeleted: true,
+        tokenVersion: {
+          increment: 1
+        }
+      }
+    });
+    if (result.count !== 1) {
+      throw new appError_default(
+        httpStatus5.CONFLICT,
+        "User information changed. Please try again!"
+      );
+    }
+    return {
+      id: targetUser.id
+    };
+  });
+  return {
+    success: true,
+    message: "User account deleted successfully!",
+    data: deletedUser
+  };
 };
 var UserServices = {
   getMyUserInfoFromDB,
@@ -2298,7 +2415,8 @@ var UserServices = {
   getAllUserFromDB,
   getUserDetailsFromDB,
   changeUserStatusOnDB,
-  changeUserRoleOnDB
+  changeUserRoleOnDB,
+  deleteUserFromDB
 };
 
 // src/modules/user/user.controller.ts
@@ -2446,6 +2564,22 @@ var changeUserRole = catchAsync_default(
     });
   }
 );
+var deleteUser = catchAsync_default(
+  async (req, res, next) => {
+    const id = req.user?.id;
+    const userId = req.params.id;
+    const result = await UserServices.deleteUserFromDB(
+      id,
+      userId
+    );
+    sendResponse(res, {
+      success: true,
+      message: "User deleted successfully!",
+      statusCode: httpStatus6.OK,
+      data: result
+    });
+  }
+);
 var UserControllers = {
   getMyUserInfo,
   updateMyUserInfo,
@@ -2455,7 +2589,8 @@ var UserControllers = {
   getAllUser,
   getUserDetails,
   changeUserStatus,
-  changeUserRole
+  changeUserRole,
+  deleteUser
 };
 
 // src/modules/user/user.validation.ts
@@ -2542,6 +2677,11 @@ router2.patch(
   "/:id/change-role",
   auth(UserRoles.ADMIN, UserRoles.SUPER_ADMIN),
   UserControllers.changeUserRole
+);
+router2.delete(
+  "/:id/delete",
+  auth(UserRoles.ADMIN, UserRoles.SUPER_ADMIN),
+  UserControllers.deleteUser
 );
 var userRoutes = router2;
 
