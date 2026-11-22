@@ -1,3 +1,4 @@
+import { UserRoles } from "./../../../generated/prisma/enums";
 import AppError from "../../errors/appError";
 import { prisma } from "../../lib/prisma";
 import type { TDecodedUser } from "../../types";
@@ -15,7 +16,12 @@ import cloudinary from "../../config/cloudinary";
 import bcrypt from "bcryptjs";
 import { config } from "../../config";
 import type { UsersWhereInput } from "../../../generated/prisma/models";
-import { allowedSortFields, allowedUserStatus } from "./user.const";
+import {
+  allowedRolesByPerformer,
+  allowedSortFields,
+  allowedUserRoles,
+  allowedUserStatus,
+} from "./user.const";
 import type { UserStatus } from "../../../generated/prisma/enums";
 
 const getMyUserInfoFromDB = async (payload: TDecodedUser) => {
@@ -720,6 +726,141 @@ const changeUserStatusOnDB = async (
   return updatedUser;
 };
 
+const changeUserRoleOnDB = async (
+  performerId: string,
+  userId: string,
+  payload: {
+    role: UserRoles;
+  },
+) => {
+  if (!performerId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have permission to change this account role!",
+    );
+  }
+
+  if (!userId || !payload.role || !allowedUserRoles.includes(payload.role)) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Please provide valid information to change user role!",
+    );
+  }
+
+  if (performerId === userId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You cannot change your own account role!",
+    );
+  }
+
+  const performerInfo = await prisma.users.findFirst({
+    where: {
+      id: performerId,
+      isDeleted: false,
+      status: "ACTIVE",
+      role: {
+        in: ["ADMIN", "SUPER_ADMIN"],
+      },
+    },
+    select: {
+      role: true,
+    },
+  });
+
+  if (!performerInfo) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to change this account role!",
+    );
+  }
+
+  const assignableRoles = allowedRolesByPerformer[performerInfo.role] ?? [];
+
+  if (!assignableRoles.includes(payload.role)) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to assign this role!",
+    );
+  }
+
+  const targetUser = await prisma.users.findFirst({
+    where: {
+      id: userId,
+      isDeleted: false,
+    },
+    select: {
+      role: true,
+      status: true,
+    },
+  });
+
+  if (!targetUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found!");
+  }
+
+  if (targetUser.status !== "ACTIVE") {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Currently you can't change this user role!",
+    );
+  }
+  if (
+    targetUser.role === "SUPER_ADMIN" ||
+    (targetUser.role === "ADMIN" && performerInfo.role !== "SUPER_ADMIN")
+  ) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to change this account role!",
+    );
+  }
+
+  if (targetUser.role === payload.role) {
+    throw new AppError(httpStatus.BAD_REQUEST, "User already has this role!");
+  }
+
+  const result = await prisma.users.updateMany({
+    where: {
+      id: userId,
+      isDeleted: false,
+      status: "ACTIVE",
+      role: targetUser.role,
+    },
+    data: {
+      role: payload.role,
+      tokenVersion: {
+        increment: 1,
+      },
+    },
+  });
+
+  if (result.count === 0) {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "User information changed. Please try again!",
+    );
+  }
+
+  const updatedUser = await prisma.users.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      image: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return updatedUser;
+};
+
 export const UserServices = {
   getMyUserInfoFromDB,
   updateMyUserInfoOnDB,
@@ -729,4 +870,5 @@ export const UserServices = {
   getAllUserFromDB,
   getUserDetailsFromDB,
   changeUserStatusOnDB,
+  changeUserRoleOnDB,
 };

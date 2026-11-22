@@ -44,19 +44,13 @@ export const auth = (...roles: UserRoles[]) => {
       );
     }
 
-    const { email, name, id, role } = verifyToken.data as {
+    const { email, name, id, role, tokenVersion } = verifyToken.data as {
       email: string;
       name: string;
       id: string;
+      tokenVersion: number;
       role: UserRoles;
     };
-
-    if (roles.length && !roles.includes(role)) {
-      throw new AppError(
-        httpStatus.FORBIDDEN,
-        "Forbidden , You do not have permission to access this route!",
-      );
-    }
 
     const user = await prisma.users.findUnique({
       where: {
@@ -69,31 +63,35 @@ export const auth = (...roles: UserRoles[]) => {
         role: true,
         isDeleted: true,
         status: true,
+        tokenVersion: true,
       },
     });
 
-    if (!user) {
-      throw new AppError(httpStatus.NOT_FOUND, "User not Exists!");
-    }
-
-    if (user && user.isDeleted) {
+    if (!user || user.isDeleted) {
       throw new AppError(
         httpStatus.NOT_FOUND,
         "This account has been deleted. Please contact support if you believe this is a mistake.",
       );
     }
 
-    if (user && user.status === "INACTIVE") {
+    if (roles.length && !roles.includes(user.role)) {
       throw new AppError(
         httpStatus.FORBIDDEN,
-        "Your account is currently inactive. Please activate your account or contact support for assistance.",
+        "You do not have permission to access this route!",
       );
     }
 
-    if (user && user.status === "SUSPENDED") {
+    if (user.status !== "ACTIVE") {
       throw new AppError(
         httpStatus.FORBIDDEN,
-        "Your account has been suspended. Please reach out to our support team for further information.",
+        "Your account is currently inactive or suspended. Please activate your account or contact support for assistance.",
+      );
+    }
+
+    if (Number(user.tokenVersion) !== Number(tokenVersion)) {
+      throw new AppError(
+        httpStatus.UNAUTHORIZED,
+        "Your session has expired. Please log in again!",
       );
     }
 

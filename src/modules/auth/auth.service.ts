@@ -70,6 +70,16 @@ const loginUserFromDB = async (payload: TLogin) => {
     where: {
       email,
     },
+    select: {
+      password: true,
+      isDeleted: true,
+      status: true,
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      tokenVersion: true,
+    },
   });
 
   //is password exists and  matched
@@ -116,6 +126,7 @@ const loginUserFromDB = async (payload: TLogin) => {
     name: isUserExists.name,
     email: isUserExists.email,
     role: isUserExists.role,
+    tokenVersion: isUserExists.tokenVersion,
     tokenType: "accessToken",
   };
 
@@ -124,6 +135,7 @@ const loginUserFromDB = async (payload: TLogin) => {
     name: isUserExists.name,
     email: isUserExists.email,
     role: isUserExists.role,
+    tokenVersion: isUserExists.tokenVersion,
     tokenType: "refreshToken",
   };
 
@@ -173,6 +185,17 @@ const googleAuthService = async (payload: TGoogleLogin) => {
   // 3. Find customer by Google ID
   let user = await prisma.users.findUnique({
     where: { googleId },
+    select: {
+      id: true,
+      emailVerifiedAt: true,
+      isDeleted: true,
+      status: true,
+      name: true,
+      email: true,
+      role: true,
+      password: true,
+      tokenVersion: true,
+    },
   });
 
   // 4. Find existing account by email
@@ -232,6 +255,7 @@ const googleAuthService = async (payload: TGoogleLogin) => {
     id: user.id,
     name: user.name,
     email: user.email,
+    tokenVersion: user.tokenVersion,
     role: user.role,
   };
 
@@ -374,6 +398,7 @@ const refreshTokenService = async (token: string) => {
       role: true,
       isDeleted: true,
       status: true,
+      tokenVersion: true,
     },
   });
 
@@ -403,6 +428,7 @@ const refreshTokenService = async (token: string) => {
     name: isUserExists.name,
     email: isUserExists.email,
     role: isUserExists.role,
+    tokenVersion: isUserExists.tokenVersion,
     tokenType: "accessToken",
   };
 

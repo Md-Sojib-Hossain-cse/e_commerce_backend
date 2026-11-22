@@ -5,7 +5,7 @@ import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
 import type { TDecodedUser } from "../../types";
 import { clearCookieOptions } from "../auth/auth.consts";
-import type { UserStatus } from "../../../generated/prisma/enums";
+import type { UserRoles, UserStatus } from "../../../generated/prisma/enums";
 
 const getMyUserInfo = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -163,6 +163,29 @@ const changeUserStatus = catchAsync(
   },
 );
 
+const changeUserRole = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user?.id;
+
+    const userId = req.params.id;
+
+    const payload = req.body;
+
+    const result = await UserServices.changeUserRoleOnDB(
+      id as string,
+      userId as string,
+      payload as { role: UserRoles },
+    );
+
+    sendResponse(res, {
+      success: true,
+      message: "User role changed successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const UserControllers = {
   getMyUserInfo,
   updateMyUserInfo,
@@ -172,4 +195,5 @@ export const UserControllers = {
   getAllUser,
   getUserDetails,
   changeUserStatus,
+  changeUserRole,
 };
