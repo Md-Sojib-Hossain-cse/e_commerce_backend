@@ -11,7 +11,7 @@ const router = Router();
 router.post(
   "/",
   auth(UserRoles.SUPER_ADMIN, UserRoles.ADMIN),
-  uploadSingleImage("categoryImage"),
+  uploadSingleImage("image"),
   validateSchema(createCategoryValidationSchema),
   CategoryController.createCategory,
 );

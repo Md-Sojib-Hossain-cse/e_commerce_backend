@@ -87,7 +87,7 @@ const createCategoryOnDB = async (
 
   try {
     // 3. Upload new image
-    uploadedImage = await uploadToCloudinary(image, "categoryImage");
+    uploadedImage = await uploadToCloudinary(image, "image");
 
     if (!uploadedImage?.secure_url || !uploadedImage.public_id) {
       throw new AppError(
