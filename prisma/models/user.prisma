@@ -28,6 +28,7 @@ model Users {
   notifications    Notifications[]
   orders           Orders[]
   passwordReset    PasswordReset[]
+  categories       Categories[]
 
   @@index([role])
   @@index([status])

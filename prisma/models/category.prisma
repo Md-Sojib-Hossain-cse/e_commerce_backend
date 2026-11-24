@@ -1,18 +1,21 @@
 model Categories {
   id              String         @id @default(uuid()) @db.Uuid
-  name            String         @db.VarChar(25)
-  slug            String         @db.VarChar(30)
+  creatorId       String         @db.Uuid
+  name            String         @unique @db.VarChar(25)
+  slug            String?        @unique @db.VarChar(30)
   description     String?        @db.VarChar(255)
-  image           String         @db.Text()
+  image           String?        @db.Text()
+  imagePublicId   String?        @db.Text()
   parentId        String?        @db.Uuid
   isFeatured      Boolean        @default(false)
-  displayOrder    Int            @db.SmallInt
+  displayOrder    Int?           @db.SmallInt
   metaTitle       String?        @db.Text()
   metaDescription String?        @db.Text()
   status          CategoryStatus @default(INACTIVE)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt()
 
+  createdBy Users @relation(fields : [creatorId] , references : [id])
   parent   Categories?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children Categories[] @relation("CategoryHierarchy")
 
