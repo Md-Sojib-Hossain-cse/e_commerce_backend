@@ -28,4 +28,6 @@ router.get(
   CategoryController.getAllCategory,
 );
 
+router.get("/:slug", CategoryController.getSpecificCategory);
+
 export const categoryRoutes = router;

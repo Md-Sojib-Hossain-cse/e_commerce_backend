@@ -288,7 +288,54 @@ const getAllCategoryFromDB = async (query: TGetAllCategoryQuery) => {
   };
 };
 
+const getSpecificCategoryFromDB = async (slug: string) => {
+  if (!slug) {
+    throw new AppError(httpStatus.NOT_FOUND, "Please Provide a valid slug!");
+  }
+
+  const result = await prisma.categories.findFirst({
+    where: {
+      slug,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      image: true,
+      description: true,
+      displayOrder: true,
+      status: true,
+      isFeatured: true,
+      metaTitle: true,
+      metaDescription: true,
+      parent: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          email: true,
+        },
+      },
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!result) {
+    throw new AppError(httpStatus.NOT_FOUND, "Category Not Found!");
+  }
+  return result;
+};
+
 export const CategoryServices = {
   createCategoryOnDB,
   getAllCategoryFromDB,
+  getSpecificCategoryFromDB,
 };

@@ -41,7 +41,25 @@ const getAllCategory = catchAsync(
   },
 );
 
+const getSpecificCategory = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const slug = req.params.slug;
+
+    const result = await CategoryServices.getSpecificCategoryFromDB(
+      slug as string,
+    );
+
+    sendResponse(res, {
+      success: true,
+      message: "Category retrieve successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const CategoryController = {
   createCategory,
   getAllCategory,
+  getSpecificCategory,
 };
