@@ -1,5 +1,6 @@
 import z from "zod";
 import { CategoryStatus } from "../../../generated/prisma/enums";
+import { allowedCategorySortableFields } from "./category.consts";
 
 export const createCategoryValidationSchema = z
   .object({
@@ -32,3 +33,46 @@ export const createCategoryValidationSchema = z
     status: z.enum(CategoryStatus).optional(),
   })
   .strict();
+
+export const getAllCategoryQueryValidationSchema = z
+  .object({
+    // Search
+    searchTerm: z.string().trim().optional(),
+
+    // Pagination
+    page: z.coerce.number().int().min(1).default(1),
+
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+
+    // Sorting
+    sortBy: z.enum(allowedCategorySortableFields).default("createdAt"),
+
+    sortOrder: z.enum(["asc", "desc"]).default("desc"),
+
+    // Filters
+    isFeatured: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional(),
+
+    status: z.nativeEnum(CategoryStatus).optional(),
+
+    // Date filters
+    createdAtFrom: z.coerce.date().optional(),
+
+    createdAtTo: z.coerce.date().optional(),
+  })
+  .refine(
+    (data) =>
+      !data.createdAtFrom ||
+      !data.createdAtTo ||
+      data.createdAtFrom <= data.createdAtTo,
+    {
+      message: "createdAtFrom must be earlier than or equal to createdAtTo",
+      path: ["createdAtTo"],
+    },
+  );
+
+export type TGetAllCategoryQuery = z.infer<
+  typeof getAllCategoryQueryValidationSchema
+>;

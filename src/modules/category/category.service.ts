@@ -1,11 +1,19 @@
 import httpStatus from "http-status";
 import AppError from "../../errors/appError";
 import { prisma } from "../../lib/prisma";
-import type { TCreateCategory } from "./category.interface";
+import type {
+  TCreateCategory,
+  TGetAllCategoryQuery,
+} from "./category.interface";
 import type { UploadApiResponse } from "cloudinary";
 import uploadToCloudinary from "../../utils/uploadCloudinary";
 import cloudinary from "../../config/cloudinary";
 import { Prisma } from "../../../generated/prisma/client";
+import type { CategoriesWhereInput } from "../../../generated/prisma/models";
+import {
+  allowedCategorySearchableFields,
+  allowedCategorySortableFields,
+} from "./category.consts";
 
 const createCategoryOnDB = async (
   creatorId: string,
@@ -169,6 +177,118 @@ const createCategoryOnDB = async (
   return result;
 };
 
+const getAllCategoryFromDB = async (query: TGetAllCategoryQuery) => {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+  const skip = (page - 1) * limit;
+
+  type SortField = (typeof allowedCategorySortableFields)[number];
+
+  const sortBy: SortField =
+    typeof query.sortBy === "string" &&
+    allowedCategorySortableFields.includes(query.sortBy as SortField)
+      ? (query.sortBy as SortField)
+      : "createdAt";
+  const sortOrder = query.sortOrder;
+
+  const andConditions: CategoriesWhereInput[] = [];
+  const orConditions: CategoriesWhereInput[] = [];
+
+  if (query.isFeatured) {
+    if (typeof query.isFeatured === "string") {
+      andConditions.push({
+        isFeatured: query.isFeatured === "true" ? true : false,
+      });
+    } else {
+      andConditions.push({
+        isFeatured: Boolean(query.isFeatured) === true ? true : false,
+      });
+    }
+  }
+
+  if (query.status) {
+    andConditions.push({
+      status: query.status,
+    });
+  }
+
+  if (query.createdAtFrom || query.createdAtTo) {
+    andConditions.push({
+      createdAt: {
+        ...(query.createdAtFrom && {
+          gte: query.createdAtFrom,
+        }),
+        ...(query.createdAtTo && {
+          lte: query.createdAtTo,
+        }),
+      },
+    });
+  }
+
+  if (query.searchTerm) {
+    allowedCategorySearchableFields.forEach((field: string) => {
+      orConditions.push({
+        [field]: {
+          contains: (query.searchTerm as string).trim(),
+          mode: "insensitive",
+        },
+      });
+    });
+
+    andConditions.push({
+      OR: orConditions,
+    });
+  }
+
+  const [result, total] = await Promise.all([
+    prisma.categories.findMany({
+      where: {
+        AND: andConditions,
+      },
+      select: {
+        name: true,
+        slug: true,
+        image: true,
+        displayOrder: true,
+        status: true,
+        createdAt: true,
+        isFeatured: true,
+        parent: {
+          select: {
+            name: true,
+          },
+        },
+        createdBy: {
+          select: {
+            name: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.categories.count({
+      where: {
+        AND: andConditions,
+      },
+    }),
+  ]);
+
+  return {
+    result,
+    meta: {
+      total,
+      page,
+      limit,
+    },
+  };
+};
+
 export const CategoryServices = {
   createCategoryOnDB,
+  getAllCategoryFromDB,
 };

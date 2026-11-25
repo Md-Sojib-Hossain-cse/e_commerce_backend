@@ -1,0 +1,8 @@
+model CategoryProducts {
+  id         String @id @db.Uuid
+  productId  String @db.Uuid
+  categoryId String @db.Uuid
+
+  category Categories @relation(fields: [categoryId], references: [id])
+  product  Products   @relation(fields: [productId], references: [id])
+}

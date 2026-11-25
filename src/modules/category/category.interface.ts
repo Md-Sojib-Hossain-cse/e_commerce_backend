@@ -11,3 +11,21 @@ export type TCreateCategory = {
   metaDescription?: string | null;
   status?: CategoryStatus;
 };
+
+export type TGetAllCategoryQuery = {
+  searchTerm?: string;
+  page?: number;
+  limit?: number;
+  sortBy?:
+    | "name"
+    | "isFeatured"
+    | "displayOrder"
+    | "status"
+    | "createdAt"
+    | "updatedAt";
+  sortOrder?: "asc" | "desc";
+  isFeatured?: boolean;
+  status?: CategoryStatus;
+  createdAtFrom?: Date;
+  createdAtTo?: Date;
+};

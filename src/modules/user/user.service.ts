@@ -25,7 +25,7 @@ import {
 import type { UserStatus } from "../../../generated/prisma/enums";
 
 const getMyUserInfoFromDB = async (payload: TDecodedUser) => {
-  const { id, name, email, role } = payload;
+  const { id } = payload;
   if (!id) {
     throw new AppError(
       httpStatus.UNAUTHORIZED,

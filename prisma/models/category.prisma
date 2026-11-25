@@ -15,9 +15,10 @@ model Categories {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt()
 
-  createdBy Users @relation(fields : [creatorId] , references : [id])
-  parent   Categories?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children Categories[] @relation("CategoryHierarchy")
+  createdBy       Users              @relation(fields: [creatorId], references: [id])
+  parent          Categories?        @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children        Categories[]       @relation("CategoryHierarchy")
+  categoryProduct CategoryProducts[]
 
   @@index([parentId])
   @@index([status])

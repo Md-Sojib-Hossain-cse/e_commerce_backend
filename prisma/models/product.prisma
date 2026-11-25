@@ -22,10 +22,11 @@ model Products {
   sizeChart SizeCharts? @relation(fields: [sizeChartId], references: [id], onDelete: SetNull)
   brand     Brands?     @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
-  gallery       ProductImages[]
-  variant       ProductVariants[]
-  review        ProductReviews[]
-  wishlistItems WishlistItems[]
+  gallery          ProductImages[]
+  variant          ProductVariants[]
+  review           ProductReviews[]
+  wishlistItems    WishlistItems[]
+  categoryProducts CategoryProducts[]
 
   @@index([brandId])
   @@index([status])
