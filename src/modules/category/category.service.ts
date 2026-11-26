@@ -10,10 +10,7 @@ import type { UploadApiResponse } from "cloudinary";
 import uploadToCloudinary from "../../utils/uploadCloudinary";
 import cloudinary from "../../config/cloudinary";
 import { Prisma } from "../../../generated/prisma/client";
-import type {
-  CategoriesUpdateInput,
-  CategoriesWhereInput,
-} from "../../../generated/prisma/models";
+import type { CategoriesWhereInput } from "../../../generated/prisma/models";
 import {
   allowedCategorySearchableFields,
   allowedCategorySortableFields,
@@ -607,11 +604,8 @@ const deleteCategoryFromDB = async (
       id: true,
       isDeleted: true,
       children: {
-        where: {
-          isDeleted: false,
-        },
         select: {
-          id: true,
+          slug: true,
         },
         take: 1,
       },

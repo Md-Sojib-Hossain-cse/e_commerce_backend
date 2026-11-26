@@ -4,7 +4,9 @@ model Brands {
   slug            String      @db.VarChar(60)
   description     String?     @db.VarChar(255)
   logo            String      @db.Text()
+  logoPublicId    String      @db.Text()
   banner          String?     @db.Text()
+  bannerPublicId  String?     @db.Text()
   website         String?     @db.Text()
   isFeatured      Boolean     @default(false)
   displayOrder    Int         @db.SmallInt
