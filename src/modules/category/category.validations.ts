@@ -117,9 +117,9 @@ export const UpdateCategoryValidationSchema = z
       .optional()
       .nullable(),
 
-    isFeatured: z.boolean().optional(),
+    isFeatured: z.enum(["true", "false"]).optional(),
 
-    displayOrder: z
+    displayOrder: z.coerce
       .number()
       .int("Display order must be an integer")
       .min(0, "Display order is too small")
@@ -138,4 +138,6 @@ export const UpdateCategoryValidationSchema = z
     message: "At least one field is required to update category",
   });
 
-export type TUpdateCategoryPayload = z.infer<typeof UpdateCategoryValidationSchema>;
+export type TUpdateCategoryPayload = z.infer<
+  typeof UpdateCategoryValidationSchema
+>;

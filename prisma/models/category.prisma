@@ -11,6 +11,7 @@ model Categories {
   displayOrder    Int?           @db.SmallInt
   metaTitle       String?        @db.Text()
   metaDescription String?        @db.Text()
+  isDeleted       Boolean?       @default(false)
   status          CategoryStatus @default(INACTIVE)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt()

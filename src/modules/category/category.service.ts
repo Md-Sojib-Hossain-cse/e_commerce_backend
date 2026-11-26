@@ -418,7 +418,8 @@ const updateCategoryOnDB = async (
   }
 
   if (payload.isFeatured !== undefined) {
-    updateCategorySafePayload.isFeatured = payload.isFeatured;
+    updateCategorySafePayload.isFeatured =
+      payload.isFeatured === "true" ? true : false;
   }
 
   if (
@@ -495,6 +496,40 @@ const updateCategoryOnDB = async (
         id: targetedCategory.id,
       },
       data: updateCategorySafePayload,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        image: true,
+        description: true,
+        displayOrder: true,
+        isFeatured: true,
+        parent: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        children: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        metaTitle: true,
+        metaDescription: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   } catch (error) {
     if (uploadedImage?.public_id) {
@@ -520,9 +555,110 @@ const updateCategoryOnDB = async (
   return result;
 };
 
+const deleteCategoryFromDB = async (
+  performerId: string,
+  categorySlug: string,
+) => {
+  const normalizeSlug = categorySlug.trim();
+  if (!performerId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have permission to delete a category.",
+    );
+  }
+
+  if (!normalizeSlug) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Please try to delete a valid category!",
+    );
+  }
+
+  const user = await prisma.users.findUnique({
+    where: {
+      id: performerId,
+    },
+    select: {
+      status: true,
+      isDeleted: true,
+      role: true,
+    },
+  });
+
+  if (!user || user.isDeleted || user.status !== "ACTIVE") {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have permission to delete category , please try to contact an admin.",
+    );
+  }
+
+  if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to delete categories!",
+    );
+  }
+
+  const category = await prisma.categories.findUnique({
+    where: {
+      slug: normalizeSlug,
+    },
+    select: {
+      id: true,
+      isDeleted: true,
+      children: {
+        where: {
+          isDeleted: false,
+        },
+        select: {
+          id: true,
+        },
+        take: 1,
+      },
+    },
+  });
+
+  if (!category || category.isDeleted) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "Category not found or already deleted!",
+    );
+  }
+
+  if (category.children.length > 0) {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Please move or delete the child categories before deleting this category!",
+    );
+  }
+
+  const deletedCategory = await prisma.categories.updateMany({
+    where: {
+      slug: normalizeSlug,
+      isDeleted: false,
+    },
+    data: {
+      isDeleted: true,
+    },
+  });
+
+  if (deletedCategory.count === 0) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "Category not found or already deleted!",
+    );
+  }
+
+  return {
+    success: true,
+    data: null,
+  };
+};
+
 export const CategoryServices = {
   createCategoryOnDB,
   getAllCategoryFromDB,
   getSpecificCategoryFromDB,
   updateCategoryOnDB,
+  deleteCategoryFromDB,
 };
