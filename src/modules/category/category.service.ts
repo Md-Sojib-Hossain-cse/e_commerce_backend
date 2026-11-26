@@ -4,16 +4,21 @@ import { prisma } from "../../lib/prisma";
 import type {
   TCreateCategory,
   TGetAllCategoryQuery,
+  TUpdateCategory,
 } from "./category.interface";
 import type { UploadApiResponse } from "cloudinary";
 import uploadToCloudinary from "../../utils/uploadCloudinary";
 import cloudinary from "../../config/cloudinary";
 import { Prisma } from "../../../generated/prisma/client";
-import type { CategoriesWhereInput } from "../../../generated/prisma/models";
+import type {
+  CategoriesUpdateInput,
+  CategoriesWhereInput,
+} from "../../../generated/prisma/models";
 import {
   allowedCategorySearchableFields,
   allowedCategorySortableFields,
 } from "./category.consts";
+import type { TUpdateCategoryPayload } from "./category.validations";
 
 const createCategoryOnDB = async (
   creatorId: string,
@@ -334,8 +339,190 @@ const getSpecificCategoryFromDB = async (slug: string) => {
   return result;
 };
 
+const updateCategoryOnDB = async (
+  performerId: string,
+  categorySlug: string,
+  payload: TUpdateCategoryPayload,
+  image?: Express.Multer.File,
+) => {
+  if (!performerId) {
+    throw new AppError(
+      httpStatus.UNAUTHORIZED,
+      "You do not have access to update a category!",
+    );
+  }
+
+  if (!categorySlug) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Please Provide a valid category url!",
+    );
+  }
+
+  const performer = await prisma.users.findUnique({
+    where: {
+      id: performerId,
+    },
+    select: {
+      role: true,
+    },
+  });
+
+  if (
+    !performer ||
+    (performer.role !== "SUPER_ADMIN" && performer.role !== "ADMIN")
+  ) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You do not have permission to update this category!",
+    );
+  }
+
+  const targetedCategory = await prisma.categories.findUnique({
+    where: {
+      slug: categorySlug,
+    },
+    select: {
+      id: true,
+      imagePublicId: true,
+    },
+  });
+
+  if (!targetedCategory) {
+    throw new AppError(httpStatus.NOT_FOUND, "Category not found!");
+  }
+
+  if (payload.parentId === targetedCategory.id) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "A category cannot be its own parent!",
+    );
+  }
+
+  const updateCategorySafePayload: TUpdateCategory = {};
+
+  // Only allow explicitly approved fields
+  if (payload.name !== undefined) {
+    updateCategorySafePayload.name = payload.name;
+  }
+
+  if (payload.slug !== undefined && typeof payload.slug === "string") {
+    updateCategorySafePayload.slug = payload.slug;
+  }
+
+  if (
+    payload.description !== undefined &&
+    typeof payload.description === "string"
+  ) {
+    updateCategorySafePayload.description = payload.description;
+  }
+
+  if (payload.isFeatured !== undefined) {
+    updateCategorySafePayload.isFeatured = payload.isFeatured;
+  }
+
+  if (
+    payload.displayOrder !== undefined &&
+    (typeof payload.displayOrder === "number" ||
+      typeof payload.displayOrder === "string")
+  ) {
+    updateCategorySafePayload.displayOrder = Number(payload.displayOrder);
+  }
+
+  if (
+    payload.metaTitle !== undefined &&
+    typeof payload.metaTitle === "string"
+  ) {
+    updateCategorySafePayload.metaTitle = payload.metaTitle;
+  }
+
+  if (
+    payload.metaDescription !== undefined &&
+    typeof payload.metaDescription === "string"
+  ) {
+    updateCategorySafePayload.metaDescription = payload.metaDescription;
+  }
+
+  if (payload.status !== undefined) {
+    updateCategorySafePayload.status = payload.status;
+  }
+
+  if (payload.parentId !== undefined && typeof payload.parentId === "string") {
+    const parentCategory = await prisma.categories.findUnique({
+      where: {
+        id: payload.parentId,
+      },
+    });
+    if (!parentCategory) {
+      throw new AppError(
+        httpStatus.NOT_FOUND,
+        "Your provided Parent Category doesn't exists!",
+      );
+    }
+    updateCategorySafePayload.parentId = payload.parentId;
+  }
+
+  let uploadedImage: UploadApiResponse | undefined;
+  let result;
+
+  if (image?.buffer.length) {
+    uploadedImage = await uploadToCloudinary(image, "image");
+
+    if (!uploadedImage?.secure_url || !uploadedImage.public_id) {
+      throw new AppError(
+        httpStatus.INTERNAL_SERVER_ERROR,
+        "Failed to upload category image!",
+      );
+    }
+
+    updateCategorySafePayload.image = uploadedImage.secure_url;
+    updateCategorySafePayload.imagePublicId = uploadedImage.public_id;
+  }
+
+  if (
+    Object.keys(updateCategorySafePayload).length === 0 &&
+    !image?.buffer.length
+  ) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Please provide valid information to update a category!",
+    );
+  }
+
+  try {
+    result = await prisma.categories.update({
+      where: {
+        id: targetedCategory.id,
+      },
+      data: updateCategorySafePayload,
+    });
+  } catch (error) {
+    if (uploadedImage?.public_id) {
+      try {
+        await cloudinary.uploader.destroy(uploadedImage.public_id);
+      } catch (cleanupError) {
+        console.error("Failed to clean up new image:", cleanupError);
+      }
+    }
+
+    throw error;
+  }
+
+  // Database update succeeded. Clean up old image separately.
+  if (uploadedImage?.public_id && targetedCategory.imagePublicId) {
+    try {
+      await cloudinary.uploader.destroy(targetedCategory.imagePublicId);
+    } catch (cleanupError) {
+      console.error("Failed to delete old image:", cleanupError);
+    }
+  }
+
+  return result;
+};
+
 export const CategoryServices = {
   createCategoryOnDB,
   getAllCategoryFromDB,
   getSpecificCategoryFromDB,
+  updateCategoryOnDB,
 };

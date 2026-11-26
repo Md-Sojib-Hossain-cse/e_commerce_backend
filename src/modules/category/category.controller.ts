@@ -58,8 +58,32 @@ const getSpecificCategory = catchAsync(
   },
 );
 
+const updateCategory = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user?.id;
+    const slug = req.params.slug;
+    const payload = req.body;
+    const image = req.file;
+
+    const result = await CategoryServices.updateCategoryOnDB(
+      id as string,
+      slug as string,
+      payload,
+      image,
+    );
+
+    sendResponse(res, {
+      success: true,
+      message: "Category updated successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const CategoryController = {
   createCategory,
   getAllCategory,
   getSpecificCategory,
+  updateCategory,
 };

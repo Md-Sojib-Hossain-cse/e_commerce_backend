@@ -29,3 +29,17 @@ export type TGetAllCategoryQuery = {
   createdAtFrom?: Date;
   createdAtTo?: Date;
 };
+
+export type TUpdateCategory = {
+  name?: string;
+  slug?: string;
+  description?: string;
+  image?: string;
+  imagePublicId?: string;
+  parentId?: string;
+  isFeatured?: boolean;
+  displayOrder?: number;
+  metaTitle?: string;
+  metaDescription?: string;
+  status?: CategoryStatus;
+};

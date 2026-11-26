@@ -76,3 +76,66 @@ export const getAllCategoryQueryValidationSchema = z
 export type TGetAllCategoryQuery = z.infer<
   typeof getAllCategoryQueryValidationSchema
 >;
+
+export const UpdateCategoryValidationSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "Category name must be at least 2 characters")
+      .max(25, "Category name cannot exceed 25 characters")
+      .optional(),
+
+    slug: z
+      .string()
+      .trim()
+      .min(2, "Slug must be at least 2 characters")
+      .max(30, "Slug cannot exceed 30 characters")
+      .regex(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+        "Slug must contain lowercase letters, numbers, and hyphens only",
+      )
+      .optional()
+      .nullable(),
+
+    description: z
+      .string()
+      .trim()
+      .max(255, "Description cannot exceed 255 characters")
+      .optional()
+      .nullable(),
+
+    image: z
+      .string()
+      .url("Please provide a valid image URL")
+      .optional()
+      .nullable(),
+
+    parentId: z
+      .string()
+      .uuid("Please provide a valid parent category ID")
+      .optional()
+      .nullable(),
+
+    isFeatured: z.boolean().optional(),
+
+    displayOrder: z
+      .number()
+      .int("Display order must be an integer")
+      .min(0, "Display order is too small")
+      .max(32767, "Display order is too large")
+      .optional()
+      .nullable(),
+
+    metaTitle: z.string().trim().optional().nullable(),
+
+    metaDescription: z.string().trim().optional().nullable(),
+
+    status: z.nativeEnum(CategoryStatus).optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required to update category",
+  });
+
+export type TUpdateCategoryPayload = z.infer<typeof UpdateCategoryValidationSchema>;
