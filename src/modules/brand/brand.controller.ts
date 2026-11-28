@@ -27,6 +27,32 @@ const createBrand = catchAsync(
   },
 );
 
+const updateBrand = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user?.id;
+    const slug = req.params.slug;
+    const payload = req.body;
+    const images = req.files as {
+      [fieldname: string]: Express.Multer.File[];
+    };
+
+    const result = await BrandServices.updateBrandOnDB(
+      id as string,
+      slug as string,
+      payload,
+      images,
+    );
+
+    sendResponse(res, {
+      success: true,
+      message: "Brand updated successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const BrandControllers = {
   createBrand,
+  updateBrand,
 };

@@ -37,7 +37,7 @@ export const createBrandValidationSchema = z.object({
     .url("Please provide a valid website URL.")
     .optional(),
 
-  isFeatured: z.boolean().default(false),
+  isFeatured: z.enum(["true", "false"]).default("false"),
 
   displayOrder: z.coerce
     .number()
