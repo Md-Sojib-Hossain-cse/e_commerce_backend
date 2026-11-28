@@ -52,7 +52,23 @@ const updateBrand = catchAsync(
   },
 );
 
+const getAllBrand = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const query = req.query;
+
+    const result = await BrandServices.getAllBrandApiFromDB(query);
+
+    sendResponse(res, {
+      success: true,
+      message: "Brands retrieve successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const BrandControllers = {
   createBrand,
   updateBrand,
+  getAllBrand,
 };

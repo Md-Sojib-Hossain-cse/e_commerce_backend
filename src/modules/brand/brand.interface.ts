@@ -30,3 +30,22 @@ export type TBrandImages = {
   logo?: Express.Multer.File[];
   banner?: Express.Multer.File[];
 };
+
+export type TGetAllBrandQuery = {
+  searchTerm?: string;
+  page?: number;
+  limit?: number;
+  sortBy?:
+    | "name"
+    | "slug"
+    | "description"
+    | "isFeatured"
+    | "displayOrder"
+    | "createdAt"
+    | "updatedAt";
+  sortOrder?: "asc" | "desc";
+  isFeatured?: boolean;
+  status?: BrandStatus;
+  createdAtFrom?: Date;
+  createdAtTo?: Date;
+};

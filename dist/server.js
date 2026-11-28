@@ -3519,7 +3519,7 @@ var createBrandOnDB = async (performerId, payload, images) => {
         "Failed to upload brand logo!"
       );
     }
-    bannerUpload = banner && await uploadCloudinary_default(banner);
+    bannerUpload = banner && await uploadCloudinary_default(banner, "image");
     if (banner && (!bannerUpload?.secure_url || !bannerUpload?.public_id)) {
       throw new appError_default(
         httpStatus9.INTERNAL_SERVER_ERROR,
@@ -3559,8 +3559,149 @@ var createBrandOnDB = async (performerId, payload, images) => {
   }
   return result;
 };
+var updateBrandOnDB = async (performerId, slug, payload, images) => {
+  const logo = images?.logo?.[0];
+  const banner = images?.banner?.[0];
+  if (!performerId) {
+    throw new appError_default(
+      httpStatus9.UNAUTHORIZED,
+      "You do not have permission to update a brand!"
+    );
+  }
+  if (!slug) {
+    throw new appError_default(
+      httpStatus9.BAD_REQUEST,
+      "Please choose a valid brand that you wan't to update!"
+    );
+  }
+  const hasImages = Boolean(logo || banner);
+  const hasPayload = Object.values(payload ?? {}).some(
+    (value) => value !== void 0
+  );
+  if (!hasImages && !hasPayload) {
+    throw new appError_default(
+      httpStatus9.BAD_REQUEST,
+      "Please provide at least one field or image to update!"
+    );
+  }
+  const performer = await prisma.users.findUnique({
+    where: {
+      id: performerId,
+      isDeleted: false
+    },
+    select: {
+      role: true,
+      status: true
+    }
+  });
+  if (!performer || performer.role !== "SUPER_ADMIN" && performer.role !== "ADMIN" || performer.status !== "ACTIVE") {
+    throw new appError_default(
+      httpStatus9.FORBIDDEN,
+      "You do not have permission to update a brand!"
+    );
+  }
+  const targetedBrand = await prisma.brands.findUnique({
+    where: {
+      slug
+    },
+    select: {
+      id: true,
+      logoPublicId: true,
+      bannerPublicId: true
+    }
+  });
+  if (!targetedBrand) {
+    throw new appError_default(
+      httpStatus9.NOT_FOUND,
+      "Please try to update a valid brand!"
+    );
+  }
+  const name = payload.name && payload.name.trim();
+  const brandSlug = payload.slug !== void 0 ? payload.slug.trim().toLowerCase().replace(/\s+/g, "-") : name?.toLowerCase().replace(/\s+/g, "-");
+  const description = payload.description?.trim();
+  const website = payload.website?.trim();
+  const isFeatured = payload.isFeatured !== void 0 && (typeof payload.isFeatured === "string" && payload.isFeatured === "true" || payload.isFeatured === true);
+  const displayOrder = payload.displayOrder !== void 0 ? Number(payload.displayOrder) : void 0;
+  if (displayOrder !== void 0 && (!Number.isSafeInteger(displayOrder) || displayOrder < 0)) {
+    throw new appError_default(
+      httpStatus9.BAD_REQUEST,
+      "Display order must be a non-negative integer!"
+    );
+  }
+  const metaTitle = payload.metaTitle?.trim();
+  const metaDescription = payload.metaDescription?.trim();
+  const status = payload.status;
+  const oldLogoPublicId = targetedBrand.logoPublicId;
+  const oldBannerPublicId = targetedBrand.bannerPublicId;
+  let logoUpload;
+  let bannerUpload;
+  let result;
+  try {
+    logoUpload = logo && await uploadCloudinary_default(logo, "image");
+    if (logo && (!logoUpload?.secure_url || !logoUpload.public_id)) {
+      throw new appError_default(
+        httpStatus9.INTERNAL_SERVER_ERROR,
+        "Failed to upload brand logo!"
+      );
+    }
+    bannerUpload = banner && await uploadCloudinary_default(banner, "image");
+    if (banner && (!bannerUpload?.secure_url || !bannerUpload?.public_id)) {
+      throw new appError_default(
+        httpStatus9.INTERNAL_SERVER_ERROR,
+        "Failed to upload brand banner!"
+      );
+    }
+    result = await prisma.brands.update({
+      where: {
+        id: targetedBrand.id
+      },
+      data: {
+        ...name !== void 0 && { name },
+        ...brandSlug !== void 0 && { slug: brandSlug },
+        ...description !== void 0 && { description },
+        ...website !== void 0 && { website },
+        ...payload.isFeatured !== void 0 ? { isFeatured } : {},
+        ...displayOrder !== void 0 && { displayOrder },
+        ...metaTitle !== void 0 && { metaTitle },
+        ...metaDescription !== void 0 && { metaDescription },
+        ...status !== void 0 && { status },
+        ...logoUpload?.secure_url && logoUpload.public_id && {
+          logo: logoUpload.secure_url,
+          logoPublicId: logoUpload.public_id
+        },
+        ...bannerUpload?.secure_url && bannerUpload.public_id && {
+          banner: bannerUpload.secure_url,
+          bannerPublicId: bannerUpload.public_id
+        }
+      }
+    });
+  } catch (error) {
+    const cleanupTasks = [logoUpload?.public_id, bannerUpload?.public_id].filter((publicId) => Boolean(publicId)).map((publicId) => cloudinary_default.uploader.destroy(publicId));
+    const cleanupResults = await Promise.allSettled(cleanupTasks);
+    cleanupResults.forEach((result2) => {
+      if (result2.status === "rejected") {
+        console.error("Cloudinary cleanup failed:", result2.reason);
+      }
+    });
+    throw error;
+  }
+  const oldPublicIds = [
+    logoUpload?.public_id ? oldLogoPublicId : null,
+    bannerUpload?.public_id ? oldBannerPublicId : null
+  ].filter((id) => Boolean(id));
+  const deletionResults = await Promise.allSettled(
+    oldPublicIds.map((publicId) => cloudinary_default.uploader.destroy(publicId))
+  );
+  deletionResults.forEach((item) => {
+    if (item.status === "rejected") {
+      console.error("Old image deletion failed:", item.reason);
+    }
+  });
+  return result;
+};
 var BrandServices = {
-  createBrandOnDB
+  createBrandOnDB,
+  updateBrandOnDB
 };
 
 // src/modules/brand/brand.controller.ts
@@ -3583,8 +3724,29 @@ var createBrand = catchAsync_default(
     });
   }
 );
+var updateBrand = catchAsync_default(
+  async (req, res, next) => {
+    const id = req.user?.id;
+    const slug = req.params.slug;
+    const payload = req.body;
+    const images = req.files;
+    const result = await BrandServices.updateBrandOnDB(
+      id,
+      slug,
+      payload,
+      images
+    );
+    sendResponse(res, {
+      success: true,
+      message: "Brand updated successfully!",
+      statusCode: httpStatus10.OK,
+      data: result
+    });
+  }
+);
 var BrandControllers = {
-  createBrand
+  createBrand,
+  updateBrand
 };
 
 // src/modules/brand/brand.validation.ts
@@ -3599,7 +3761,7 @@ var createBrandValidationSchema = z6.object({
   logo: z6.string().url("Invalid logo URL").optional().nullable(),
   banner: z6.string().url("Please provide a valid image URL").optional().nullable(),
   website: z6.string().trim().url("Please provide a valid website URL.").optional(),
-  isFeatured: z6.boolean().default(false),
+  isFeatured: z6.enum(["true", "false"]).default("false"),
   displayOrder: z6.coerce.number().int("Display order must be an integer.").min(0).max(32767),
   metaTitle: z6.string().trim().optional(),
   metaDescription: z6.string().trim().optional(),
@@ -3618,6 +3780,16 @@ router4.post(
   ]),
   validateSchema(createBrandValidationSchema),
   BrandControllers.createBrand
+);
+router4.patch(
+  "/:slug/update",
+  auth(UserRoles.SUPER_ADMIN, UserRoles.ADMIN),
+  uploadMultipleFields([
+    { name: "logo", maxCount: 1 },
+    { name: "banner", maxCount: 1 }
+  ]),
+  validateSchema(updateBrandValidationSchema),
+  BrandControllers.updateBrand
 );
 var brandRoutes = router4;
 

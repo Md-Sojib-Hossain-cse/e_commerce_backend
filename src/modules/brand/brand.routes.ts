@@ -5,9 +5,11 @@ import { UserRoles } from "../../../generated/prisma/enums";
 import { validateSchema } from "../../middlewares/validateSchema";
 import {
   createBrandValidationSchema,
+  getAllBrandQueryValidationSchema,
   updateBrandValidationSchema,
 } from "./brand.validation";
 import { uploadMultipleFields } from "../../middlewares/multer";
+import validateRequest from "../../middlewares/validateRequest";
 
 const router = Router();
 
@@ -31,6 +33,14 @@ router.patch(
   ]),
   validateSchema(updateBrandValidationSchema),
   BrandControllers.updateBrand,
+);
+
+router.get(
+  "/",
+  validateRequest({
+    query: getAllBrandQueryValidationSchema,
+  }),
+  BrandControllers.getAllBrand,
 );
 
 export const brandRoutes = router;

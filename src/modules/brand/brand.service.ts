@@ -4,11 +4,18 @@ import { prisma } from "../../lib/prisma";
 import type {
   TBrandImages,
   TCreateBrandPayload,
+  TGetAllBrandQuery,
   TUpdateBrand,
 } from "./brand.interface";
 import httpStatus from "http-status";
 import uploadToCloudinary from "../../utils/uploadCloudinary";
 import cloudinary from "../../config/cloudinary";
+import {
+  allowedBrandSortableFields,
+  brandSearchableFields,
+} from "./brand.consts";
+import type { BrandsWhereInput } from "../../../generated/prisma/models";
+import type { Prisma } from "../../../generated/prisma/client";
 
 const createBrandOnDB = async (
   performerId: string,
@@ -334,7 +341,118 @@ const updateBrandOnDB = async (
   return result;
 };
 
+const getAllBrandApiFromDB = async (query: TGetAllBrandQuery) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  type SortField = (typeof allowedBrandSortableFields)[number];
+
+  const sortBy: SortField =
+    typeof query.sortBy === "string" &&
+    allowedBrandSortableFields.includes(query.sortBy as SortField)
+      ? (query.sortBy as SortField)
+      : "createdAt";
+  const sortOrder: Prisma.SortOrder =
+    query.sortOrder === "asc" || query.sortOrder === "desc"
+      ? query.sortOrder
+      : "desc";
+
+  const andConditions: BrandsWhereInput[] = [];
+  const orConditions: BrandsWhereInput[] = [];
+
+  if (query.isFeatured) {
+    if (typeof query.isFeatured === "string") {
+      andConditions.push({
+        isFeatured: query.isFeatured === "true" ? true : false,
+      });
+    } else {
+      andConditions.push({
+        isFeatured: Boolean(query.isFeatured) === true ? true : false,
+      });
+    }
+  }
+
+  if (query.status) {
+    andConditions.push({
+      status: query.status,
+    });
+  }
+
+  if (query.createdAtFrom || query.createdAtTo) {
+    andConditions.push({
+      createdAt: {
+        ...(query.createdAtFrom && {
+          gte: query.createdAtFrom,
+        }),
+        ...(query.createdAtTo && {
+          lte: query.createdAtTo,
+        }),
+      },
+    });
+  }
+
+  if (query.searchTerm) {
+    brandSearchableFields.forEach((field: string) => {
+      orConditions.push({
+        [field]: {
+          contains: (query.searchTerm as string).trim(),
+          mode: "insensitive",
+        },
+      });
+    });
+
+    andConditions.push({
+      OR: orConditions,
+    });
+  }
+
+  const [result, total] = await Promise.all([
+    prisma.brands.findMany({
+      where: {
+        AND: andConditions,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        logo: true,
+        banner: true,
+        isFeatured: true,
+        displayOrder: true,
+        website: true,
+        status: true,
+        metaTitle: true,
+        metaDescription: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.brands.count({
+      where: {
+        AND: andConditions,
+      },
+    }),
+  ]);
+
+  return {
+    result,
+    meta: {
+      total,
+      page,
+      limit,
+    },
+  };
+};
+
 export const BrandServices = {
   createBrandOnDB,
   updateBrandOnDB,
+  getAllBrandApiFromDB,
 };
