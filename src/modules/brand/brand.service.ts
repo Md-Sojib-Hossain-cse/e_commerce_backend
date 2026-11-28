@@ -373,11 +373,15 @@ const getAllBrandApiFromDB = async (query: TGetAllBrandQuery) => {
     }
   }
 
-  if (query.status) {
-    andConditions.push({
-      status: query.status,
-    });
-  }
+  // if (query.status) {
+  //   andConditions.push({
+  //     status: query.status,
+  //   });
+  // }
+
+  andConditions.push({
+    status: "ACTIVE",
+  });
 
   if (query.createdAtFrom || query.createdAtTo) {
     andConditions.push({
@@ -451,8 +455,63 @@ const getAllBrandApiFromDB = async (query: TGetAllBrandQuery) => {
   };
 };
 
+const getSpecificBrandFromDB = async (slug: string) => {
+  if (!slug) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Brand slug is required to access brand information.",
+    );
+  }
+
+  const normalizedSlug = slug.trim();
+
+  const result = await prisma.brands.findUnique({
+    where: {
+      slug: normalizedSlug,
+      status: "ACTIVE",
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      isFeatured: true,
+      displayOrder: true,
+      logo: true,
+      banner: true,
+      status: true,
+      metaTitle: true,
+      metaDescription: true,
+      website: true,
+      products: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          image: true,
+          price: true,
+          salePrice: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 10,
+      },
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!result) {
+    throw new AppError(httpStatus.NOT_FOUND, "Brand not Found!");
+  }
+
+  return result;
+};
+
 export const BrandServices = {
   createBrandOnDB,
   updateBrandOnDB,
   getAllBrandApiFromDB,
+  getSpecificBrandFromDB,
 };

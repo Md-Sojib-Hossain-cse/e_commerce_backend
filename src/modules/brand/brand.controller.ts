@@ -67,8 +67,24 @@ const getAllBrand = catchAsync(
   },
 );
 
+const getSpecificBrand = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const slug = req.params.slug;
+
+    const result = await BrandServices.getSpecificBrandFromDB(slug as string);
+
+    sendResponse(res, {
+      success: true,
+      message: "Brand retrieve successfully!",
+      statusCode: httpStatus.OK,
+      data: result,
+    });
+  },
+);
+
 export const BrandControllers = {
   createBrand,
   updateBrand,
   getAllBrand,
+  getSpecificBrand,
 };

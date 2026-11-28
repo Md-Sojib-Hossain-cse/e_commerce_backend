@@ -43,4 +43,6 @@ router.get(
   BrandControllers.getAllBrand,
 );
 
+router.get("/:slug", BrandControllers.getSpecificBrand);
+
 export const brandRoutes = router;
