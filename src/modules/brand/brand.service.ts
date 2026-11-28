@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma";
 import type { TBrandImages, TCreateBrandPayload } from "./brand.interface";
 import httpStatus from "http-status";
 import uploadToCloudinary from "../../utils/uploadCloudinary";
+import cloudinary from "../../config/cloudinary";
 
 const createBrandOnDB = async (
   performerId: string,
@@ -24,7 +25,7 @@ const createBrandOnDB = async (
     );
   }
 
-  if (!payload && !images.logo) {
+  if (!payload) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "Please provide valid information to create a brand!",
@@ -37,20 +38,44 @@ const createBrandOnDB = async (
       id: performerId,
       isDeleted: false,
     },
+    select: {
+      role: true,
+      status: true,
+    },
   });
 
   if (
     !performer ||
-    (performer.role !== "SUPER_ADMIN" && performer.role !== "ADMIN")
+    (performer.role !== "SUPER_ADMIN" && performer.role !== "ADMIN") ||
+    performer.status !== "ACTIVE"
   ) {
     throw new AppError(
-      httpStatus.UNAUTHORIZED,
+      httpStatus.FORBIDDEN,
       "You do not have permission to create a brand!",
     );
   }
 
-  const brandSlug =
-    payload.slug.trim() || payload.name.toLowerCase().replace(/\s+/g, "-");
+  const brandSlug = (payload.slug?.trim() || payload.name.trim())
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+
+  const isFeatured =
+    payload.isFeatured === true ||
+    (typeof payload.isFeatured === "string" && payload.isFeatured === "true");
+
+  const displayOrder = Number(payload.displayOrder);
+
+  if (!Number.isSafeInteger(displayOrder) || displayOrder < 0) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Display order must be a non-negative integer!",
+    );
+  }
+
+  const description = payload.description?.trim();
+  const website = payload.website?.trim();
+  const metaTitle = payload.metaTitle?.trim();
+  const metaDescription = payload.metaDescription?.trim();
 
   let logoUpload: UploadApiResponse | undefined;
   let bannerUpload: UploadApiResponse | undefined;
@@ -65,7 +90,7 @@ const createBrandOnDB = async (
         "Failed to upload brand logo!",
       );
     }
-    const bannerUpload = banner ? await uploadToCloudinary(banner) : null;
+    bannerUpload = banner && (await uploadToCloudinary(banner));
     if (banner && (!bannerUpload?.secure_url || !bannerUpload?.public_id)) {
       throw new AppError(
         httpStatus.INTERNAL_SERVER_ERROR,
@@ -75,19 +100,43 @@ const createBrandOnDB = async (
 
     result = await prisma.brands.create({
       data: {
-        name: payload.name,
+        name: payload.name.trim(),
         slug: brandSlug,
-        displayOrder: payload.displayOrder,
+        displayOrder,
         logo: logoUpload.secure_url,
+        logoPublicId: logoUpload.public_id,
+        isFeatured,
+        ...(banner &&
+          bannerUpload && {
+            banner: bannerUpload?.secure_url,
+            bannerPublicId: bannerUpload?.public_id,
+          }),
+        ...(description && { description }),
+        ...(website && { website }),
+        ...(metaTitle && { metaTitle }),
+        ...(metaDescription && { metaDescription }),
+        ...(payload.status && {
+          status: payload.status,
+        }),
       },
     });
-  } catch (error) {}
+  } catch (error) {
+    const cleanupTasks = [logoUpload?.public_id, bannerUpload?.public_id]
+      .filter((publicId): publicId is string => Boolean(publicId))
+      .map((publicId) => cloudinary.uploader.destroy(publicId));
 
-  return {
-    images,
-    performerId,
-    payload,
-  };
+    const cleanupResults = await Promise.allSettled(cleanupTasks);
+
+    cleanupResults.forEach((result) => {
+      if (result.status === "rejected") {
+        console.error("Cloudinary cleanup failed:", result.reason);
+      }
+    });
+
+    throw error;
+  }
+
+  return result;
 };
 
 export const BrandServices = {

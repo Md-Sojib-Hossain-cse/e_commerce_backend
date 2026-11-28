@@ -1,7 +1,7 @@
 model Brands {
   id              String      @id @default(uuid()) @db.Uuid
-  name            String      @db.VarChar(50)
-  slug            String      @db.VarChar(60)
+  name            String      @unique @db.VarChar(50)
+  slug            String      @unique @db.VarChar(60)
   description     String?     @db.VarChar(255)
   logo            String      @db.Text()
   logoPublicId    String      @db.Text()
